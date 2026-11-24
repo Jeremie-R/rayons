@@ -70,12 +70,22 @@ async function findOrCreateLabel(google: Google, name: string, existing?: GLabel
   // Gmail shows "A/B" nested only when "A" exists.
   const parent = name.split('/').slice(0, -1).join('/')
   if (parent && !labels.some((label) => label.name.toLowerCase() === parent.toLowerCase())) await findOrCreateLabel(google, parent, labels)
-  const created = await google.request<GLabel>(`${GMAIL}/labels`, {
-    method: 'POST',
-    body: JSON.stringify({ name, labelListVisibility: 'labelShow', messageListVisibility: 'show' }),
-  })
-  labels.push(created)
-  return created.id
+  try {
+    const created = await google.request<GLabel>(`${GMAIL}/labels`, {
+      method: 'POST',
+      body: JSON.stringify({ name, labelListVisibility: 'labelShow', messageListVisibility: 'show' }),
+    })
+    labels.push(created)
+    return created.id
+  } catch (error) {
+    // Another request created it a moment ago (two screens loading at once): use that one.
+    if (!(error instanceof HttpError && error.status === 409)) throw error
+    const fresh = (await google.request<{ labels: GLabel[] }>(`${GMAIL}/labels`)).labels
+    const found = fresh.find((label) => label.name.toLowerCase() === name.toLowerCase())
+    if (!found) throw error
+    labels.push(found)
+    return found.id
+  }
 }
 
 export async function tagLabels(google: Google): Promise<Record<TagId, string>> {

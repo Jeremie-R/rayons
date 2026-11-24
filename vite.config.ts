@@ -55,10 +55,11 @@ function apiFunctions(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  // The api/ functions read their secrets from process.env, as they do on Vercel.
+  // The api/ functions read their settings from process.env, as on Vercel, where every
+  // variable (VITE_ ones included) reaches the functions. Only VITE_ ones reach the browser.
   const env = loadEnv(mode, process.cwd(), '')
   for (const [name, value] of Object.entries(env)) {
-    if (!name.startsWith('VITE_') && process.env[name] === undefined) process.env[name] = value
+    if (process.env[name] === undefined) process.env[name] = value
   }
   return {
     plugins: [react(), apiFunctions()],

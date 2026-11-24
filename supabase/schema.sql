@@ -127,6 +127,15 @@ create table if not exists public.google_tokens (
 alter table public.google_tokens enable row level security;
 revoke all on public.google_tokens from anon, authenticated;
 
+-- Grants ----------------------------------------------------------------------------------------
+-- Newer Supabase projects don't grant table access automatically. Grant exactly what's needed;
+-- row-level security still limits signed-in people to their own rows.
+
+revoke all on public.projects, public.project_files, public.google_accounts, public.google_tokens from anon, authenticated;
+grant select, insert, update, delete on public.projects, public.project_files to authenticated;
+grant select on public.google_accounts to authenticated;
+grant select, insert, update, delete on public.projects, public.project_files, public.google_accounts, public.google_tokens to service_role;
+
 -- Storage: a private bucket, one folder per person ("<user id>/<project id>/<file>"). --------
 
 insert into storage.buckets (id, name, public, file_size_limit)

@@ -122,6 +122,7 @@ export function googleClient(account: GoogleAccount) {
     if (!response.ok) {
       console.error('Google API error', response.status, url.replace(/\?.*/, ''), text.slice(0, 500))
       if (response.status === 404) throw new HttpError(404, 'not_found', 'It is not there any more. It may have been deleted in Gmail or Google Calendar.')
+      if (response.status === 409) throw new HttpError(409, 'conflict', 'That already exists in Google.')
       if (response.status === 403) throw new HttpError(403, 'google_forbidden', 'Google did not allow that. You may need to sign in again to grant access.')
       throw new HttpError(502, 'google_error', 'Google did not accept the change. Please try again.')
     }
