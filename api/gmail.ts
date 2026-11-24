@@ -1,9 +1,9 @@
-import type { Draft, TagId, ThreadQuery } from '../src/lib/types'
-import { accountFor, GMAIL, googleClient } from '../server/google'
-import { handle, HttpError, json, readJson } from '../server/http'
-import * as mail from '../server/mail'
-import { touchProjects } from '../server/projects'
-import { requireUser } from '../server/supabase'
+import type { Draft, TagId, ThreadQuery } from '../src/lib/types.js'
+import { accountFor, GMAIL, googleClient } from '../server/google.js'
+import { handle, HttpError, json, readJson } from '../server/http.js'
+import * as mail from '../server/mail.js'
+import { touchProjects } from '../server/projects.js'
+import { requireUser } from '../server/supabase.js'
 
 type Body =
   | { action: 'listThreads'; query: ThreadQuery }

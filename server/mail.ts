@@ -1,9 +1,9 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
-import type { Attachment, Draft, Message, Person, ProjectFile, TagId, Thread, ThreadQuery, ThreadSummary } from '../src/lib/types'
-import { GMAIL, inParallel, type Google } from './google'
-import { HttpError } from './http'
-import { adminClient } from './supabase'
+import type { Attachment, Draft, Message, Person, ProjectFile, TagId, Thread, ThreadQuery, ThreadSummary } from '../src/lib/types.js'
+import { GMAIL, inParallel, type Google } from './google.js'
+import { HttpError } from './http.js'
+import { adminClient } from './supabase.js'
 
 // Gmail ↔ Rayons. Tags are Gmail labels "Rayons/admin"…; a project is a label
 // "Rayons/Projects/<name>". Read/unread, archived and spam are Gmail's own labels.

@@ -1,6 +1,6 @@
-import { decrypt, encrypt } from './crypto'
-import { env, HttpError } from './http'
-import { adminClient } from './supabase'
+import { decrypt, encrypt } from './crypto.js'
+import { env, HttpError } from './http.js'
+import { adminClient } from './supabase.js'
 
 export const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me'
 export const CALENDAR = 'https://www.googleapis.com/calendar/v3'

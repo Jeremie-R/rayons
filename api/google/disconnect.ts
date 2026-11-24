@@ -1,6 +1,6 @@
-import { decrypt } from '../../server/crypto'
-import { handle, json } from '../../server/http'
-import { adminClient, requireUser } from '../../server/supabase'
+import { decrypt } from '../../server/crypto.js'
+import { handle, json } from '../../server/http.js'
+import { adminClient, requireUser } from '../../server/supabase.js'
 
 // Forgets the Google connection: asks Google to revoke the token, then deletes it here.
 // Projects, notes and files stay; mail and events were always in Google.

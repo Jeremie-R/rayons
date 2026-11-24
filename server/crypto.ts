@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
-import { env, HttpError } from './http'
+import { env, HttpError } from './http.js'
 
 // Google tokens are stored encrypted (AES-256-GCM) with TOKEN_ENCRYPTION_KEY, so a leaked
 // database dump alone doesn't give access to anyone's mail. Format: base64(iv | tag | data).

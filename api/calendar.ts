@@ -1,9 +1,9 @@
-import type { EventDraft } from '../src/lib/types'
-import * as calendar from '../server/calendar'
-import { accountFor, googleClient } from '../server/google'
-import { handle, HttpError, json, readJson } from '../server/http'
-import { touchProjects } from '../server/projects'
-import { requireUser } from '../server/supabase'
+import type { EventDraft } from '../src/lib/types.js'
+import * as calendar from '../server/calendar.js'
+import { accountFor, googleClient } from '../server/google.js'
+import { handle, HttpError, json, readJson } from '../server/http.js'
+import { touchProjects } from '../server/projects.js'
+import { requireUser } from '../server/supabase.js'
 
 type Body =
   | { action: 'listCalendars' }

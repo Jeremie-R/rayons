@@ -1,8 +1,8 @@
-import type { TagId } from '../src/lib/types'
-import { projectEventTags } from './calendar'
-import { inParallel, type Google } from './google'
-import { projectMailStats, projectsOf } from './mail'
-import { adminClient } from './supabase'
+import type { TagId } from '../src/lib/types.js'
+import { projectEventTags } from './calendar.js'
+import { inParallel, type Google } from './google.js'
+import { projectMailStats, projectsOf } from './mail.js'
+import { adminClient } from './supabase.js'
 
 const ORDER: TagId[] = ['admin', 'event', 'buy', 'knowledge']
 

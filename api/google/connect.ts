@@ -1,7 +1,7 @@
-import { encrypt } from '../../server/crypto'
-import { exchangeCode, REQUIRED_SCOPES } from '../../server/google'
-import { env, handle, HttpError, json, readJson } from '../../server/http'
-import { adminClient, optionalUser, publicClient } from '../../server/supabase'
+import { encrypt } from '../../server/crypto.js'
+import { exchangeCode, REQUIRED_SCOPES } from '../../server/google.js'
+import { env, handle, HttpError, json, readJson } from '../../server/http.js'
+import { adminClient, optionalUser, publicClient } from '../../server/supabase.js'
 
 // Finishes "Continue with Google". The browser sends the one-time code Google gave it; we
 // trade it (with the client secret, which never leaves the server) for tokens, keep the

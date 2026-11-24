@@ -1,6 +1,6 @@
-import type { CalendarEvent, CalendarInfo, EventDraft, TagId } from '../src/lib/types'
-import { CALENDAR, inParallel, type Google } from './google'
-import { HttpError } from './http'
+import type { CalendarEvent, CalendarInfo, EventDraft, TagId } from '../src/lib/types.js'
+import { CALENDAR, inParallel, type Google } from './google.js'
+import { HttpError } from './http.js'
 
 // Google Calendar ↔ Rayons. An event's tag and project are private extended properties
 // (rayonsTag, rayonsProject): visible only to you, kept on your copy of invited events too.

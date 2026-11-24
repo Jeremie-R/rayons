@@ -1,8 +1,8 @@
-import { accountFor, googleClient } from '../server/google'
-import { handle, HttpError, json, readJson } from '../server/http'
-import * as mail from '../server/mail'
-import { refreshProjects } from '../server/projects'
-import { adminClient, requireUser } from '../server/supabase'
+import { accountFor, googleClient } from '../server/google.js'
+import { handle, HttpError, json, readJson } from '../server/http.js'
+import * as mail from '../server/mail.js'
+import { refreshProjects } from '../server/projects.js'
+import { adminClient, requireUser } from '../server/supabase.js'
 
 // The Google side of projects. The browser reads and writes the projects table itself
 // (row-level security keeps it private); these keep Gmail's project labels in step.
