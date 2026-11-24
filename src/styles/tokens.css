@@ -1,0 +1,99 @@
+/*
+ * Design tokens, from the Figma file "side-project".
+ * Changes from the file, for contrast (WCAG AA):
+ * - muted text #797979 → #6b6b6b (4.4:1 → 5.3:1 on white; 16px text needs 4.5:1)
+ * - accent and tag backgrounds a step deeper, so chips and active states read as shapes
+ *   against white (the file's #fbf3ff, #fdf3fb… were ~1.05:1 against the page)
+ * - chips and event blocks keep a hairline in their own colour
+ */
+:root {
+  --font: 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
+  --text-sm: 12px;
+  --text-md: 14px;
+  --text: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --leading: 1.6;
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+
+  --ink: #2e2e2e;
+  --ink-muted: #6b6b6b;
+  --ink-inverse: #ffffff;
+  --line: #e4e4e4;
+  --line-strong: #d2d2d2;
+  --page: #ffffff;
+  --hover: #f8fafb;
+  --selected: #f2f4f7;
+  --toggle: #eaeaea;
+  --scrim: rgba(30, 24, 48, 0.32);
+
+  --accent: #493886;
+  --accent-strong: #3a2b70;
+  --accent-bg: #f3eafe;
+  --accent-bg-hover: #e9dcfc;
+  --accent-line: rgba(73, 56, 134, 0.28);
+  --danger: #b42318;
+  --danger-bg: #fef1f0;
+  --now: #d92d20;
+
+  /* Tags: ink for text, bg for fills, line for hairlines. "none" is untagged. */
+  --tag-admin: #921b5a;
+  --tag-admin-bg: #fbeaf4;
+  --tag-event: #073c78;
+  --tag-event-bg: #e5f2fc;
+  --tag-buy: #913114;
+  --tag-buy-bg: #fdede2;
+  --tag-knowledge: #0c4e2f;
+  --tag-knowledge-bg: #e1f5e8;
+  --tag-none: #493886;
+  --tag-none-bg: #f3eafe;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  --rail: 64px;
+  --list: 352px;
+  --hero: 106px;
+  --gutter: 24px;
+  --gutter-wide: 64px;
+  --tabbar: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --shadow-pop: 0 12px 32px rgba(30, 24, 48, 0.14), 0 2px 6px rgba(30, 24, 48, 0.08);
+  --focus: 0 0 0 2px var(--page), 0 0 0 4px var(--accent);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (max-width: 719px) {
+  :root {
+    --gutter-wide: 20px;
+    --gutter: 16px;
+  }
+}
+
+/* Tag colour sets, applied with data-tag on any element. */
+[data-tag] {
+  --tag-ink: var(--tag-none);
+  --tag-bg: var(--tag-none-bg);
+}
+[data-tag='admin'] {
+  --tag-ink: var(--tag-admin);
+  --tag-bg: var(--tag-admin-bg);
+}
+[data-tag='event'] {
+  --tag-ink: var(--tag-event);
+  --tag-bg: var(--tag-event-bg);
+}
+[data-tag='buy'] {
+  --tag-ink: var(--tag-buy);
+  --tag-bg: var(--tag-buy-bg);
+}
+[data-tag='knowledge'] {
+  --tag-ink: var(--tag-knowledge);
+  --tag-bg: var(--tag-knowledge-bg);
+}

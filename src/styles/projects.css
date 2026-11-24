@@ -1,0 +1,351 @@
+/* Project list ----------------------------------------------------------------------------- */
+
+.project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 59px;
+  padding: 16px var(--gutter);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-weight: var(--weight-medium);
+  transition: background-color 0.12s;
+}
+
+.project-row:hover {
+  background: var(--hover);
+}
+
+.project-row.is-selected {
+  background: var(--selected);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.project-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Project page ----------------------------------------------------------------------------- */
+
+.project {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.project__scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--gutter-wide) 64px;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--hover);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.project-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 48px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.project-section:last-child {
+  border-bottom: 0;
+}
+
+.project-section__title {
+  font-size: var(--text);
+}
+
+.project-section.is-dropping {
+  background: var(--accent-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 2px var(--accent-line) inset;
+}
+
+/* Events: a horizontal timeline of cards */
+
+.event-strip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 2px 2px 8px;
+  margin: -2px -2px 0;
+  scrollbar-width: thin;
+}
+
+.event-strip__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  scroll-snap-align: start;
+}
+
+.event-strip__connector {
+  flex-shrink: 0;
+}
+
+.event-strip__add {
+  padding-top: 8px;
+  padding-left: 4px;
+}
+
+.event-strip__empty {
+  padding: 8px 0;
+}
+
+.event-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 220px;
+  flex-shrink: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--page);
+  text-align: left;
+  box-shadow: inset 3px 0 0 var(--tag-ink);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.event-card[data-tag='none'] {
+  box-shadow: none;
+}
+
+.event-card:hover {
+  border-color: var(--line-strong);
+}
+
+.event-card__when {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.event-card__title {
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.event-card__where {
+  color: var(--ink-muted);
+}
+
+.event-card.is-past {
+  background: var(--hover);
+}
+
+.event-card.is-past .event-card__when,
+.event-card.is-past .event-card__title {
+  color: var(--ink-muted);
+}
+
+/* Files */
+
+.files {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.file {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--page);
+  max-width: 100%;
+  transition: border-color 0.15s;
+}
+
+.file:hover {
+  border-color: var(--line-strong);
+}
+
+.file__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 0 16px;
+  min-width: 0;
+  color: var(--ink);
+}
+
+.file__open svg {
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+
+.file__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+
+.file__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  margin-left: -8px;
+  border-radius: 50%;
+  color: var(--ink-muted);
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+
+.file:hover .file__remove,
+.file__remove:focus-visible {
+  opacity: 1;
+}
+
+.file__remove:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.file--pending {
+  padding: 0 16px;
+  color: var(--ink-muted);
+  border-style: dashed;
+}
+
+.files__hint {
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+}
+
+@media (hover: none) {
+  .file__remove {
+    opacity: 1;
+  }
+}
+
+/* Notes */
+
+.notes {
+  width: 100%;
+  min-height: 104px;
+  border: 0;
+  padding: 8px 12px;
+  margin: -8px -12px;
+  width: calc(100% + 24px);
+  border-radius: var(--radius);
+  resize: none;
+  line-height: var(--leading);
+  transition: background-color 0.15s;
+}
+
+.notes:hover {
+  background: var(--hover);
+}
+
+.notes:focus-visible {
+  background: var(--page);
+  box-shadow: inset 0 0 0 1px var(--accent-line), 0 0 0 3px var(--accent-bg);
+}
+
+.save-state {
+  font-size: var(--text-sm);
+  margin-top: -8px;
+}
+
+/* Emails: list and conversation in one box */
+
+.mail-box {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-height: 420px;
+  max-height: min(760px, 80vh);
+}
+
+.mail-box__list {
+  flex: 0 0 280px;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.mail-box__list .thread-row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.mail-box__thread {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mail-box__thread > * {
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 1099px) {
+  .mail-box__list {
+    flex-basis: 220px;
+  }
+}
+
+@media (max-width: 719px) {
+  .project-section {
+    padding: 32px 0;
+  }
+
+  .event-strip {
+    margin-right: calc(var(--gutter) * -1);
+    padding-right: var(--gutter);
+  }
+
+  .event-card {
+    width: 200px;
+  }
+
+  .file__name {
+    max-width: 180px;
+  }
+
+  .mail-box {
+    min-height: 0;
+    max-height: none;
+  }
+
+  .mail-box__list {
+    flex: 1;
+    border-right: 0;
+  }
+}
