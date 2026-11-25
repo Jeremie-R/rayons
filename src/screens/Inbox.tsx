@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { ComposeIcon, FilterIcon, InboxIcon, SearchIcon } from '../components/icons'
 import { Menu, MenuItem } from '../components/overlays'
 import { Button, EmptyState, ErrorNote, IconButton, Loading, TagChip } from '../components/ui'
-import { keys, useBackend, useQuery } from '../data/store'
-import { useIsMobile, useShortcut } from '../lib/hooks'
+import { ResizeHandle, useListWidth } from '../components/ResizeHandle'
+import { keys, prefetch, useBackend, useQuery } from '../data/store'
+import { useIsMobile } from '../lib/hooks'
+import { useShortcut } from '../lib/shortcuts'
 import { TAGS, type MailBox, type TagId, type ThreadQuery } from '../lib/types'
 import { ComposeDialog } from '../mail/Composer'
 import { inboxOrder, ThreadList } from '../mail/ThreadList'
@@ -77,31 +79,59 @@ export function InboxScreen() {
 
   const listUrl = `/inbox${params.size ? `?${params}` : ''}`
   const openThread = (id: string) => navigate(`/inbox/${id}${params.size ? `?${params}` : ''}`)
+  // The list as it was while the open conversation was in it (archiving removes it at once).
+  const listWithOpen = useRef<typeof threads>([])
+  if (threadId && threads.some((t) => t.id === threadId)) listWithOpen.current = threads
   const afterGone = () => {
-    const index = threads.findIndex((t) => t.id === threadId)
-    const next = threads[index + 1] ?? threads[index - 1]
+    const list = listWithOpen.current
+    const index = list.findIndex((t) => t.id === threadId)
+    const next = list[index + 1] ?? list[index - 1]
     if (!mobile && next && next.id !== threadId) openThread(next.id)
     else navigate(listUrl)
   }
 
+  const [listWidth, setListWidth] = useListWidth()
+  const searchInput = useRef<HTMLInputElement>(null)
+  const load = (id: string) => prefetch(keys.thread(id), () => backend.getThread(id))
+
+  // Gmail's keys: j/k move through conversations, / searches, c composes.
+  const step = (direction: 1 | -1) => {
+    if (threads.length === 0) return
+    const index = threads.findIndex((t) => t.id === threadId)
+    const next = threads[index < 0 ? 0 : Math.max(0, Math.min(threads.length - 1, index + direction))]
+    if (next && next.id !== threadId) openThread(next.id)
+  }
   useShortcut('c', () => setComposing(true))
+  useShortcut('j', () => step(1))
+  useShortcut('k', () => step(-1))
+  useShortcut('/', () => searchInput.current?.focus())
+
+  // The conversations either side of the open one load in the background.
+  useEffect(() => {
+    if (!threadId) return
+    const index = threads.findIndex((t) => t.id === threadId)
+    for (const neighbour of [threads[index + 1], threads[index - 1]]) if (neighbour) load(neighbour.id)
+  }, [threadId, threads])
 
   const unread = (data ?? []).filter((t) => t.unread).length
   const showList = !mobile || !threadId
   const showDetail = !mobile || !!threadId
 
   return (
-    <div className="split">
+    <div className="split" style={{ '--list': `${listWidth}px` } as CSSProperties}>
       {showList && (
         <section className="list-pane" aria-label={TITLES[box]}>
           <header className="list-pane__header">
             <div className="list-pane__title">
               <h1>{TITLES[box]}</h1>
-              <IconButton icon={ComposeIcon} label="New message (c)" variant="round" onClick={() => setComposing(true)} />
+              <IconButton icon={ComposeIcon} label="New message" shortcut="c" variant="round" onClick={() => setComposing(true)} />
             </div>
             <div className="search">
               <SearchIcon size={16} />
               <input
+                ref={searchInput}
+                data-tooltip="Search mail"
+                data-keys="/"
                 type="search"
                 className="search__input"
                 placeholder="search"
@@ -152,7 +182,7 @@ export function InboxScreen() {
                 {search ? 'Try other words, or another tag.' : box === 'inbox' && tag !== 'all' ? `No ${tag} mail in your inbox.` : null}
               </EmptyState>
             ) : (
-              <ThreadList threads={threads} selectedId={threadId} onOpen={(t) => openThread(t.id)} projects={projects} />
+              <ThreadList threads={threads} selectedId={threadId} onOpen={(t) => openThread(t.id)} projects={projects} onHover={(t) => load(t.id)} />
             )}
             <div className="list-pane__footer">
               {box === 'inbox' ? (
@@ -168,13 +198,15 @@ export function InboxScreen() {
         </section>
       )}
 
+      {showList && showDetail && <ResizeHandle width={listWidth} onChange={setListWidth} />}
+
       {showDetail && (
         <section className="detail-pane" aria-label="Conversation">
           {threadId ? (
             <ThreadView threadId={threadId} onBack={() => navigate(listUrl)} onGone={afterGone} />
           ) : (
             <EmptyState title={unread ? `${unread} unread in ${tag === 'all' ? TITLES[box].toLowerCase() : tag}` : 'No conversation selected'} icon={InboxIcon}>
-              Pick a conversation on the left. Shortcuts: <kbd>c</kbd> compose, <kbd>r</kbd> reply, <kbd>e</kbd> archive.
+              Pick a conversation on the left, or press <kbd>j</kbd>. <kbd>?</kbd> shows every shortcut.
             </EmptyState>
           )}
         </section>

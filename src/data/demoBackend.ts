@@ -266,6 +266,12 @@ export function createDemoBackend(): Backend {
         .sort((a, b) => parseDate(a.start).getTime() - parseDate(b.start).getTime())
     },
 
+    async listThreadEvents(threadId) {
+      return data.events
+        .filter((event) => event.threadId === threadId)
+        .sort((a, b) => parseDate(a.start).getTime() - parseDate(b.start).getTime())
+    },
+
     async createEvent(draft) {
       const id = `primary|e${Date.now()}`
       const event: CalendarEvent = { calendarId: 'primary', ...draft, id, canEdit: true }

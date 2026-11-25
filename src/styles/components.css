@@ -5,7 +5,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--ink);
+  color: var(--ink-muted);
   border-radius: var(--radius-pill);
   transition: background-color 0.15s, color 0.15s;
 }
@@ -25,7 +25,7 @@
 .icon-button--plain:hover:not(:disabled),
 .icon-button--plain[aria-expanded='true'] {
   background: var(--hover);
-  color: var(--accent);
+  color: var(--ink);
 }
 
 .icon-button--plain.is-active {
@@ -321,7 +321,7 @@ kbd {
 }
 
 .segmented__item.is-active {
-  background: var(--page);
+  background: var(--raised);
   color: var(--ink);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
@@ -417,7 +417,7 @@ kbd {
   padding: 7px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--page);
+  background: transparent;
   transition: border-color 0.15s;
 }
 
@@ -447,7 +447,7 @@ kbd {
 
 select.field__input {
   appearance: none;
-  background: var(--page)
+  background: transparent
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236b6b6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
     no-repeat right 12px center;
   padding-right: 36px;
@@ -493,12 +493,12 @@ select.field__input {
 
 .menu {
   position: fixed;
-  z-index: 50;
+  z-index: 70;
   min-width: 220px;
   max-width: min(320px, calc(100vw - 16px));
   overflow-y: auto;
   padding: 6px;
-  background: var(--page);
+  background: var(--raised);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-pop);
@@ -635,7 +635,7 @@ select.field__input {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-pop);
   color: var(--ink);
-  background: var(--page);
+  background: var(--raised);
 }
 
 .dialog--wide {
@@ -734,8 +734,8 @@ select.field__input {
   gap: 16px;
   padding: 10px 16px;
   border-radius: var(--radius);
-  background: var(--ink);
-  color: var(--ink-inverse);
+  background: var(--toast-bg);
+  color: var(--toast-ink);
   box-shadow: var(--shadow-pop);
   pointer-events: auto;
   animation: pop-in 0.16s var(--ease);
@@ -746,7 +746,7 @@ select.field__input {
 }
 
 .toast__action {
-  color: #d9c8ff;
+  color: var(--toast-action);
   font-weight: var(--weight-medium);
 }
 
@@ -827,4 +827,145 @@ select.field__input {
   from {
     opacity: 0;
   }
+}
+
+/* Tooltip (yalqen style) ------------------------------------------------------------------- */
+
+.tooltip {
+  position: fixed;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 5px 10px;
+  border-radius: 9px;
+  background: var(--raised);
+  color: var(--ink);
+  box-shadow: 0 0 0 0.5px var(--line-strong), 0 3px 7px rgba(16, 18, 24, 0.12);
+  font: var(--weight-medium) 12px/16px var(--font);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+}
+
+:root[data-theme='dark'] .tooltip {
+  box-shadow: 0 0 0 0.5px var(--line-strong), 0 3px 7px rgba(0, 0, 0, 0.42);
+}
+
+.tooltip.is-on {
+  opacity: 1;
+  transform: none;
+  transition: opacity 90ms ease-out, transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.tooltip.has-keys {
+  padding-right: 5px;
+}
+
+.tooltip__text {
+  overflow-wrap: anywhere;
+}
+
+.tooltip__keys {
+  display: flex;
+  flex: none;
+  gap: 3px;
+}
+
+.tooltip kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 5px;
+  font: 600 11px/1 var(--font);
+  background: color-mix(in srgb, var(--accent) 14%, var(--raised));
+  color: color-mix(in srgb, var(--accent) 72%, var(--ink));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 38%, transparent), 0 1px 0 color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* The resizable border between a list and the open item ------------------------------------ */
+
+.resize-handle {
+  position: relative;
+  flex: 0 0 0;
+  z-index: 5;
+  margin-left: -1px;
+  outline: none;
+}
+
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  inset: 0 -5px;
+  cursor: col-resize;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  width: 3px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.15s 0.1s;
+}
+
+.resize-handle:hover::after,
+.resize-handle.is-dragging::after,
+.resize-handle:focus-visible::after {
+  opacity: 1;
+}
+
+body.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.is-resizing iframe {
+  pointer-events: none;
+}
+
+/* Shortcut sheet --------------------------------------------------------------------------- */
+
+.shortcut-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px 32px;
+}
+
+.shortcut-group h3 {
+  font-size: var(--text-md);
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+
+.shortcut-group .shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shortcut-group .shortcuts div {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: center;
+}
+
+.shortcut-group dt {
+  display: flex;
+  gap: 3px;
+}
+
+.panel__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }

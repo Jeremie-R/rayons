@@ -28,7 +28,7 @@ export interface DemoData {
   files: ProjectFile[]
 }
 
-export const DEMO_VERSION = 2
+export const DEMO_VERSION = 3
 
 const person = (name: string, email: string): Person => ({ name, email })
 const solgarden = person('Solgården Homes', 'rentals@solgarden.example')
@@ -103,7 +103,7 @@ export function createDemoData(now = new Date()): DemoData {
         ['Assembly guide.pdf', 'application/pdf', 1_400_000],
       ]),
       msg(id, me, at(1, 18, 5), `Thanks! Could you deliver to the new address, Rosengatan 12, instead of the one on the order?\n\nAlex`),
-      msg(id, nordhem, at(0, 9, 30), `Of course, we've updated the address. Delivery is planned for Friday morning.\n\nNordhem Furniture`),
+      msg(id, nordhem, at(0, 9, 30), `Of course, we've updated the address. Delivery is planned for Friday morning.\n\nNordhem Furniture\n\nOn Mon, Nov 23, 2026 at 18:05 Alex Morgan\n<alex@example.com> wrote:\n> Thanks! Could you deliver to the new address, Rosengatan 12, instead of the one on the order?\n>\n> Alex`),
     ]),
     thread('t3', 'Key handover on Tuesday', 'event', 'p-house', {}, (id) => [
       msg(id, solgarden, at(3, 11, 0), `Hi Alex,\n\nThis confirms the key handover on Tuesday at 11:00 at our office, Rosengatan 12. It takes about half an hour, then we walk through the apartment together.\n\nSee you there!`),
@@ -174,21 +174,21 @@ export function createDemoData(now = new Date()): DemoData {
     allDay: true,
   })
   let eventCount = 0
-  const event = (title: string, when: Pick<CalendarEvent, 'start' | 'end' | 'allDay'>, tag: Tag, projectId: string | null, location = '', description = ''): CalendarEvent => {
+  const event = (title: string, when: Pick<CalendarEvent, 'start' | 'end' | 'allDay'>, tag: Tag, projectId: string | null, location = '', description = '', threadId: string | null = null): CalendarEvent => {
     const id = `e${++eventCount}`
-    return { id: `primary|${id}`, calendarId: 'primary', title, ...when, location, description, tag, projectId, canEdit: true }
+    return { id: `primary|${id}`, calendarId: 'primary', title, ...when, location, description, tag, projectId, threadId, canEdit: true }
   }
 
   const events: CalendarEvent[] = [
     event('Rent due', allDay(0), 'admin', 'p-house'),
     event('UX Nordic conference', allDay(1, 2), 'knowledge', 'p-ux', 'Slagthuset, Malmö'),
     event('Bank appointment', timed(0, [9, 10], [11, 0]), 'admin', 'p-house', 'Stortorget 4, 211 22 Malmö', 'Bring ID and the signed lease.'),
-    event('Collect keys and first walkthrough', timed(1, [11, 0], [16, 0]), 'admin', 'p-house', 'Solgården office, Rosengatan 12, Malmö'),
-    event('Lunch with Sam', timed(2, [12, 30], [13, 15]), null, null, 'Saluhallen, Malmö'),
+    event('Collect keys and first walkthrough', timed(1, [11, 0], [16, 0]), 'admin', 'p-house', 'Solgården office, Rosengatan 12, Malmö', '', 't3'),
+    event('Lunch with Sam', timed(2, [12, 30], [13, 15]), null, null, 'Saluhallen, Malmö', '', 't9'),
     event('UX crit session', timed(3, [14, 0], [17, 0]), 'knowledge', 'p-ux', 'Design school, room 3.14'),
     event('Furniture delivery', timed(4, [8, 30], [13, 30]), 'buy', 'p-house', 'Home'),
     event('Climbing', timed(4, [15, 30], [17, 0]), null, null, 'Boulder Hall'),
-    event("Sofia's birthday dinner", timed(5, [19, 0], [23, 0]), 'event', null, 'Sofia and Jonas, Möllevången'),
+    event("Sofia's birthday dinner", timed(5, [19, 0], [23, 0]), 'event', null, 'Sofia and Jonas, Möllevången', '', 't13'),
     event('Sofa delivery', timed(8, [10, 0], [12, 0]), 'buy', 'p-house', 'Home'),
     event('Flight to Lisbon', timed(10, [7, 5], [10, 40]), 'event', 'p-lisbon', 'Malmö Airport'),
     event('Lisbon', allDay(10, 4), 'event', 'p-lisbon', 'Casa do Rio, Rua da Bica 31'),

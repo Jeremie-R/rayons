@@ -14,6 +14,13 @@ export function useMailActions() {
     const refresh = () => invalidate(keys.threads, 'thread:', keys.projects)
     const patchLists = (id: string, patch: Partial<ThreadSummary>) =>
       updateCached<ThreadSummary[] | ThreadSummary>(keys.threads, (list) => (Array.isArray(list) ? list.map((t) => (t.id === id ? { ...t, ...patch } : t)) : list))
+    // Takes a thread out of lists straight away; `everywhere` includes project lists.
+    const dropFromLists = (id: string, everywhere: boolean) =>
+      updateCached<ThreadSummary[]>(keys.threads, (list, key) => {
+        if (!Array.isArray(list)) return list
+        if (!everywhere && key.includes('"projectId"')) return list
+        return list.filter((t) => t.id !== id)
+      })
 
     async function run(task: () => Promise<unknown>, message?: string, undo?: () => Promise<unknown>) {
       try {
@@ -48,13 +55,16 @@ export function useMailActions() {
       },
       toggleArchived(thread: ThreadSummary) {
         const archived = !thread.archived
+        dropFromLists(thread.id, false)
         return run(() => backend.setThreadArchived(thread.id, archived), archived ? 'Archived' : 'Moved to inbox', () => backend.setThreadArchived(thread.id, !archived))
       },
       trash(thread: ThreadSummary) {
+        dropFromLists(thread.id, true)
         return run(() => backend.trashThread(thread.id), 'Moved to trash')
       },
       toggleSpam(thread: ThreadSummary) {
         const spam = !thread.spam
+        dropFromLists(thread.id, true)
         return run(() => backend.setThreadSpam(thread.id, spam), spam ? 'Reported as spam' : 'Not spam: moved to inbox', () => backend.setThreadSpam(thread.id, !spam))
       },
       async unsubscribe(thread: ThreadSummary) {

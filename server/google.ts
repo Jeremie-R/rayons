@@ -1,6 +1,7 @@
 import { decrypt, encrypt } from './crypto.js'
 import { env, HttpError } from './http.js'
 import { adminClient } from './supabase.js'
+import { timed } from './timing.js'
 
 export const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me'
 export const CALENDAR = 'https://www.googleapis.com/calendar/v3'
@@ -52,7 +53,7 @@ export async function exchangeCode(code: string, codeVerifier: string, redirectU
 
 /** The person's Google account (Rayons uses one per person for now). */
 export async function accountFor(userId: string): Promise<GoogleAccount> {
-  const { data, error } = await adminClient().from('google_accounts').select('*').eq('user_id', userId).order('created_at').limit(1).maybeSingle()
+  const { data, error } = await timed('account', Promise.resolve(adminClient().from('google_accounts').select('*').eq('user_id', userId).order('created_at').limit(1).maybeSingle()))
   if (error) throw error
   if (!data) throw new HttpError(409, 'google_not_connected', 'Connect your Google account first.')
   if (data.status === 'reconnect') throw new HttpError(401, 'google_reconnect', 'Google needs you to sign in again.')
@@ -129,7 +130,41 @@ export function googleClient(account: GoogleAccount) {
     return (text ? JSON.parse(text) : undefined) as T
   }
 
-  return { call, request, account }
+  /**
+   * Several GETs in one HTTP request (Google's batch endpoint): much faster than one request
+   * each. `paths` are like '/gmail/v1/users/me/threads/abc?format=metadata'. Returns the parsed
+   * bodies in order, null for any that failed (callers may fetch those again on their own).
+   */
+  async function batch<T>(service: 'gmail/v1', paths: string[]): Promise<(T | null)[]> {
+    if (paths.length === 0) return []
+    const boundary = `batch_${Math.random().toString(36).slice(2)}`
+    const body =
+      paths.map((path, index) => `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <item${index}>\r\n\r\nGET ${path}\r\n\r\n`).join('') + `--${boundary}--`
+    const response = await call(`https://gmail.googleapis.com/batch/${service}`, {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/mixed; boundary=${boundary}` },
+      body,
+    })
+    if (!response.ok) throw new HttpError(502, 'google_error', 'Google is not answering right now. Please try again.')
+    const replyBoundary = response.headers.get('content-type')?.match(/boundary=([^;]+)/)?.[1]
+    const text = await response.text()
+    const results: (T | null)[] = paths.map(() => null)
+    if (!replyBoundary) return results
+    for (const part of text.split(`--${replyBoundary}`)) {
+      const id = part.match(/Content-ID:\s*<response-item(\d+)>/i)?.[1]
+      const status = Number(part.match(/HTTP\/1\.1 (\d{3})/)?.[1])
+      const json = part.indexOf('{')
+      if (id === undefined || status !== 200 || json < 0) continue
+      try {
+        results[Number(id)] = JSON.parse(part.slice(json, part.lastIndexOf('}') + 1)) as T
+      } catch {
+        // Left null.
+      }
+    }
+    return results
+  }
+
+  return { call, request, batch, account }
 }
 
 export type Google = ReturnType<typeof googleClient>

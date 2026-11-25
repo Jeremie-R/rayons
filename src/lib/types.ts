@@ -99,13 +99,15 @@ export interface CalendarEvent {
   description: string
   tag: Tag
   projectId: string | null
+  /** The mail conversation this event came from or belongs with, with or without a project. */
+  threadId: string | null
   /** Opens the event in Google Calendar. */
   link?: string
   /** False for events you were invited to and can't move. */
   canEdit: boolean
 }
 
-export type EventDraft = Pick<CalendarEvent, 'title' | 'start' | 'end' | 'allDay' | 'location' | 'description' | 'tag' | 'projectId'> & {
+export type EventDraft = Pick<CalendarEvent, 'title' | 'start' | 'end' | 'allDay' | 'location' | 'description' | 'tag' | 'projectId' | 'threadId'> & {
   calendarId?: string
 }
 

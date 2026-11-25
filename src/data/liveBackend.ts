@@ -167,6 +167,7 @@ export function createLiveBackend(userId: string, account: Account): Backend {
       await api('projects', { action: 'delete', projectId: id })
     },
     listProjectEvents: (projectId) => calendar<CalendarEvent[]>({ action: 'listEvents', ...wide(), projectId }),
+    listThreadEvents: (threadId) => calendar<CalendarEvent[]>({ action: 'listEvents', ...wide(), threadId }),
 
     async listFiles(projectId) {
       const [rows, fromMail] = await Promise.all([

@@ -129,12 +129,13 @@
   border-radius: var(--radius-sm);
   background: var(--page);
   text-align: left;
-  box-shadow: inset 3px 0 0 var(--tag-ink);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s;
 }
 
-.event-card[data-tag='none'] {
-  box-shadow: none;
+.event-card__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .event-card:hover {

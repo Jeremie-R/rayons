@@ -57,6 +57,7 @@ function toEvent(calendar: CalendarInfo, event: GEvent): CalendarEvent {
     description: event.description ?? '',
     tag,
     projectId: props.rayonsProject || null,
+    threadId: props.rayonsThread || null,
     link: event.htmlLink,
     canEdit: calendar.canEdit && (!event.organizer || !!event.organizer.self || !!event.guestsCanModify),
   }
@@ -69,14 +70,15 @@ export function splitId(id: string) {
 }
 
 /** Events between two ISO date-times, across the calendars shown in Google Calendar. */
-export async function listEvents(google: Google, timeMin: string, timeMax: string, projectId?: string): Promise<CalendarEvent[]> {
+export async function listEvents(google: Google, timeMin: string, timeMax: string, filter: { projectId?: string; threadId?: string } = {}): Promise<CalendarEvent[]> {
   const calendars = (await listCalendars(google)).filter((c) => c.selected)
   const lists = await inParallel(calendars, 5, async (calendar) => {
     const events: CalendarEvent[] = []
     let pageToken: string | undefined
     do {
       const params = new URLSearchParams({ timeMin, timeMax, singleEvents: 'true', orderBy: 'startTime', maxResults: '2500' })
-      if (projectId) params.set('privateExtendedProperty', `rayonsProject=${projectId}`)
+      if (filter.projectId) params.append('privateExtendedProperty', `rayonsProject=${filter.projectId}`)
+      if (filter.threadId) params.append('privateExtendedProperty', `rayonsThread=${filter.threadId}`)
       if (pageToken) params.set('pageToken', pageToken)
       const page = await google
         .request<{ items?: GEvent[]; nextPageToken?: string }>(`${CALENDAR}/calendars/${encodeURIComponent(calendar.id)}/events?${params}`)
@@ -111,6 +113,7 @@ function body(draft: Partial<EventDraft>, timeZone?: string) {
   // An empty value clears the property (patch merges this map rather than replacing it).
   if (draft.tag !== undefined) props.rayonsTag = draft.tag ?? ''
   if (draft.projectId !== undefined) props.rayonsProject = draft.projectId ?? ''
+  if (draft.threadId !== undefined) props.rayonsThread = draft.threadId ?? ''
   if (Object.keys(props).length) out.extendedProperties = { private: props }
   return out
 }
@@ -153,6 +156,6 @@ export async function deleteEvent(google: Google, id: string) {
 export async function projectEventTags(google: Google, projectId: string) {
   const now = Date.now()
   const year = 365 * 86_400_000
-  const events = await listEvents(google, new Date(now - 2 * year).toISOString(), new Date(now + 2 * year).toISOString(), projectId)
+  const events = await listEvents(google, new Date(now - 2 * year).toISOString(), new Date(now + 2 * year).toISOString(), { projectId })
   return [...new Set(events.map((e) => e.tag).filter((t): t is TagId => t !== null))]
 }

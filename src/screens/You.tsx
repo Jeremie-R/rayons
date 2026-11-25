@@ -1,25 +1,16 @@
 import { useAuth } from '../auth/AuthProvider'
 import { SignOutIcon } from '../components/icons'
 import { useFeedback } from '../components/overlays'
-import { Avatar, Button, TagChip } from '../components/ui'
+import { ShortcutList } from '../components/GlobalShortcuts'
+import { Avatar, Button, Segmented, TagChip } from '../components/ui'
+import { useTheme } from '../lib/theme'
 import { TAG_INFO } from '../lib/tags'
 import { TAGS } from '../lib/types'
-
-const SHORTCUTS: [string, string][] = [
-  ['c', 'New message'],
-  ['r', 'Reply'],
-  ['e', 'Archive'],
-  ['#', 'Move to trash'],
-  ['u', 'Mark as unread'],
-  ['Esc', 'Back to the list'],
-  ['n', 'New event (calendar)'],
-  ['t', 'Today (calendar)'],
-  ['← →', 'Previous / next (calendar)'],
-]
 
 export function YouScreen() {
   const { state, backend, liveEnabled, signIn, leaveDemo, resetDemoData, signOut, disconnectGoogle } = useAuth()
   const notify = useFeedback()
+  const theme = useTheme()
   const account = backend?.account
   const demo = state.status === 'demo'
 
@@ -105,17 +96,28 @@ export function YouScreen() {
         </section>
 
         <section className="panel">
+          <h2 className="panel__title">Appearance</h2>
+          <div className="panel__row">
+            <Segmented
+              label="Theme"
+              value={theme.preference}
+              onChange={theme.setPreference}
+              options={[
+                { value: 'system', label: 'System' },
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+              ]}
+            />
+            <span className="muted">{theme.preference === 'system' ? `Following your device (${theme.resolved} now).` : 'Kept on this device.'}</span>
+          </div>
+        </section>
+
+        <section className="panel">
           <h2 className="panel__title">Keyboard</h2>
-          <dl className="shortcuts">
-            {SHORTCUTS.map(([key, what]) => (
-              <div key={key}>
-                <dt>
-                  <kbd>{key}</kbd>
-                </dt>
-                <dd>{what}</dd>
-              </div>
-            ))}
-          </dl>
+          <p className="muted">
+            Press <kbd>?</kbd> anywhere for this list. Hover a button to see its shortcut.
+          </p>
+          <ShortcutList />
         </section>
 
         <section className="panel">

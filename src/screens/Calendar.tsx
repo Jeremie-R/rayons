@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { EventDialog, newDraft, type EventEditing } from '../calendar/EventDialog'
 import { MonthGrid, Schedule, TimeGrid, YearGrid } from '../calendar/views'
@@ -9,7 +9,7 @@ import { keys, useBackend, useQuery } from '../data/store'
 import { addDays, addMonths, dateKey, formatDay, formatMonth, formatMonthYear, parseDate, startOfDay, startOfMonth, startOfWeek } from '../lib/dates'
 import { useIsMobile, useShortcut } from '../lib/hooks'
 import { TAG_INFO } from '../lib/tags'
-import { TAGS, type TagId } from '../lib/types'
+import { TAGS, type CalendarEvent, type TagId } from '../lib/types'
 
 type View = 'schedule' | 'day' | 'week' | 'month' | 'year'
 const DESKTOP_VIEWS: View[] = ['schedule', 'day', 'week', 'month', 'year']
@@ -33,7 +33,18 @@ export function CalendarScreen() {
   const view: View = requested && views.includes(requested) ? requested : mobile ? 'day' : 'week'
   const cursor = params.get('date') ? parseDate(params.get('date')!) : startOfDay(new Date())
   const [scheduleDays, setScheduleDays] = useState(30)
-  const [editing, setEditing] = useState<EventEditing | null>(null)
+  const [editing, setEditingState] = useState<EventEditing | null>(null)
+  // While the open editor has unsaved changes, clicks on other events don't replace it.
+  const dirty = useRef(false)
+  const setEditing = (next: EventEditing | null) => {
+    if (next && dirty.current) return
+    dirty.current = false
+    setEditingState(next)
+  }
+  const closeEditor = useCallback(() => {
+    dirty.current = false
+    setEditingState(null)
+  }, [])
   const [tagFilter, setTagFilter] = useState<Set<TagId | 'none'>>(new Set())
   const [searching, setSearching] = useState(false)
   const [search, setSearch] = useState('')
@@ -94,17 +105,21 @@ export function CalendarScreen() {
   }
   const today = () => go({ date: startOfDay(new Date()) })
   const openDay = (day: Date) => go({ view: 'day', date: day })
-  const create = (at: Date, allDay?: boolean) => setEditing({ mode: 'create', draft: newDraft(at, { allDay }) })
+  const create = (at: Date, allDay = false, anchor?: DOMRect) => setEditing({ mode: 'create', draft: newDraft(at, { allDay }), anchor })
+  const open = (event: CalendarEvent, anchor?: DOMRect) => setEditing({ mode: 'edit', event, anchor })
 
+  // Google Calendar's keys.
   useShortcut('t', today)
-  useShortcut('ArrowLeft', () => step(-1))
+  useShortcut('j', () => step(1))
+  useShortcut('k', () => step(-1))
   useShortcut('ArrowRight', () => step(1))
-  useShortcut('n', () => {
-    const at = new Date()
-    at.setMinutes(0, 0, 0)
-    at.setHours(at.getHours() + 1)
-    create(at)
-  })
+  useShortcut('ArrowLeft', () => step(-1))
+  useShortcut('a', () => go({ view: 'schedule' }))
+  useShortcut('d', () => go({ view: 'day' }))
+  useShortcut('w', () => go({ view: 'week' }), !mobile)
+  useShortcut('m', () => go({ view: 'month' }))
+  useShortcut('y', () => go({ view: 'year' }), !mobile)
+  useShortcut('/', () => setSearching(true))
 
   const label = (() => {
     if (view === 'day') return formatDay(cursor)
@@ -126,7 +141,8 @@ export function CalendarScreen() {
     at.setHours(Math.max(9, new Date().getHours() + 1), 0, 0, 0)
     create(at)
   }
-  const addButton = <IconButton icon={AddEventIcon} label="New event (n)" variant="round" onClick={createNow} />
+  const addButton = <IconButton icon={AddEventIcon} label="New event" shortcut="c" variant="round" onClick={createNow} />
+  useShortcut('c', createNow)
   const toggleTag = (tag: TagId | 'none') =>
     setTagFilter((set) => {
       const next = new Set(set)
@@ -140,13 +156,13 @@ export function CalendarScreen() {
       <header className="calendar__header">
         <div className="calendar__title">
           <h1>Calendar</h1>
-          <button type="button" className="today-badge" onClick={today} title="Go to today (t)" aria-label="Go to today">
+          <button type="button" className="today-badge" onClick={today} data-tooltip="Today" data-keys="t" aria-label="Go to today">
             <span className="today-badge__month">{formatMonth(now)}</span>
             <span className="today-badge__day">{now.getDate()}</span>
           </button>
           <div className="calendar__nav">
-            <IconButton icon={PrevIcon} label="Previous" size={20} onClick={() => step(-1)} />
-            <IconButton icon={NextIcon} label="Next" size={20} onClick={() => step(1)} />
+            <IconButton icon={PrevIcon} label="Previous" shortcut="k" size={20} onClick={() => step(-1)} />
+            <IconButton icon={NextIcon} label="Next" shortcut="j" size={20} onClick={() => step(1)} />
             <span className="calendar__range">{label}</span>
             {mobile && addButton}
           </div>
@@ -167,7 +183,7 @@ export function CalendarScreen() {
               />
             </div>
           ) : (
-            <IconButton icon={SearchIcon} label="Search events" onClick={() => setSearching(true)} />
+            <IconButton icon={SearchIcon} label="Search events" shortcut="/" onClick={() => setSearching(true)} />
           )}
           <Menu label="Show tags" trigger={(props) => <IconButton {...props} icon={FilterIcon} label="Filter by tag" active={tagFilter.size > 0} />}>
             {() => (
@@ -223,15 +239,17 @@ export function CalendarScreen() {
 
       <div className="calendar__body">
         {!!error && !data && <ErrorNote error={error} onRetry={reload} />}
-        {(view === 'week' || view === 'day') && <TimeGrid days={range.days} events={events} onOpen={(event) => setEditing({ mode: 'edit', event })} onCreate={create} />}
-        {view === 'month' && <MonthGrid cursor={cursor} events={events} onOpen={(event) => setEditing({ mode: 'edit', event })} onCreate={create} onDay={openDay} />}
+        {(view === 'week' || view === 'day') && (
+          <TimeGrid days={range.days} events={events} onOpen={open} onCreate={create} ghost={editing?.mode === 'create' ? editing.draft : null} />
+        )}
+        {view === 'month' && <MonthGrid cursor={cursor} events={events} onOpen={open} onCreate={create} onDay={openDay} />}
         {view === 'year' && <YearGrid cursor={cursor} events={events} onDay={openDay} />}
         {view === 'schedule' && (
-          <Schedule from={cursor} days={scheduleDays} events={events} projects={projects ?? []} onOpen={(event) => setEditing({ mode: 'edit', event })} onMore={() => setScheduleDays((d) => d + 30)} />
+          <Schedule from={cursor} days={scheduleDays} events={events} projects={projects ?? []} onOpen={open} onMore={() => setScheduleDays((d) => d + 30)} />
         )}
       </div>
 
-      <EventDialog editing={editing} onClose={() => setEditing(null)} />
+      <EventDialog editing={editing} onClose={closeEditor} onDirtyChange={(value) => (dirty.current = value)} />
     </div>
   )
 }

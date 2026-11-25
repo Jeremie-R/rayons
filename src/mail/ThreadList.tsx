@@ -10,9 +10,12 @@ interface ThreadListProps {
   /** `full` is the inbox list. `compact` is the narrower list inside a project. */
   variant?: 'full' | 'compact'
   projects?: Project[]
+  /** Called when the pointer rests on a row, to load it ahead of a click. */
+  onHover?: (thread: ThreadSummary) => void
 }
 
-export function ThreadList({ threads, selectedId, onOpen, variant = 'full', projects }: ThreadListProps) {
+export function ThreadList({ threads, selectedId, onOpen, variant = 'full', projects, onHover }: ThreadListProps) {
+  let hoverTimer: number | undefined
   const projectName = (id: string | null) => (id ? projects?.find((p) => p.id === id)?.name : undefined)
   return (
     <ul className={`thread-list thread-list--${variant}`} role="list">
@@ -25,6 +28,8 @@ export function ThreadList({ threads, selectedId, onOpen, variant = 'full', proj
               className={`thread-row ${thread.unread ? 'is-unread' : ''} ${thread.id === selectedId ? 'is-selected' : ''}`}
               aria-current={thread.id === selectedId ? 'true' : undefined}
               onClick={() => onOpen(thread)}
+              onPointerEnter={onHover ? () => (hoverTimer = window.setTimeout(() => onHover(thread), 120)) : undefined}
+              onPointerLeave={onHover ? () => window.clearTimeout(hoverTimer) : undefined}
             >
               <span className="thread-row__top">
                 <span className="thread-row__from">

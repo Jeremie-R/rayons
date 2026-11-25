@@ -112,11 +112,122 @@
   flex-direction: column;
 }
 
+.thread {
+  container-type: inline-size;
+}
+
+.thread__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.thread__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .thread__messages {
   display: flex;
   flex-direction: column;
   padding: 48px var(--gutter-wide) 24px;
   flex: 1;
+}
+
+/* Events linked to the conversation: a rail on the right when there's room, else on top. */
+.calendar-rail {
+  order: -1;
+  margin: 24px var(--gutter-wide) 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+@container (min-width: 900px) {
+  .thread__body.has-rail {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .thread__body.has-rail .thread__messages {
+    padding-right: 32px;
+  }
+
+  .calendar-rail {
+    order: 0;
+    position: sticky;
+    top: 24px;
+    flex: 0 0 240px;
+    margin: 48px var(--gutter-wide) 0 0;
+  }
+
+  .calendar-rail__list {
+    flex-direction: column;
+    overflow: visible;
+  }
+}
+
+.calendar-rail__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.calendar-rail__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--weight-medium);
+  color: var(--ink-muted);
+  font-size: var(--text-md);
+}
+
+.calendar-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.rail-event {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 180px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--hover);
+  text-align: left;
+  font-size: var(--text-md);
+}
+
+.rail-event:hover {
+  background: var(--selected);
+}
+
+.rail-event.is-past {
+  opacity: 0.7;
+}
+
+.rail-event__when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rail-event__title {
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.rail-event__where {
+  font-size: var(--text-sm);
 }
 
 .thread__reply {
@@ -210,15 +321,30 @@
   display: block;
 }
 
-.message__quoted-toggle {
-  display: block;
+/* Dark mode: mail keeps its white paper. */
+.message__frame.is-paper {
+  background: var(--paper);
+  border-radius: var(--radius);
+}
+
+/* The ••• that shows the quoted history, like Gmail's. */
+.quoted-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  width: 32px;
+  height: 18px;
   margin-top: 8px;
-  padding: 0 6px;
-  border-radius: var(--radius-xs);
-  background: var(--hover);
+  border-radius: var(--radius-pill);
+  background: var(--toggle);
   color: var(--ink-muted);
-  font-size: var(--text-sm);
-  line-height: 20px;
+}
+
+.quoted-toggle:hover,
+.quoted-toggle.is-open {
+  background: var(--line-strong);
+  color: var(--ink);
 }
 
 .message__quoted {
@@ -380,5 +506,68 @@
   .project-strip {
     margin-top: 16px;
     margin-bottom: -8px;
+  }
+}
+
+/* Link events to a mail ------------------------------------------------------------------- */
+
+.link-events {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.link-events__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.link-events__item {
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.link-events__item:hover {
+  background: var(--hover);
+}
+
+.link-events__item.is-linked {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.link-events__when {
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+
+.link-events__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.link-events__note {
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 719px) {
+  .link-events__item {
+    grid-template-columns: 1fr auto;
+  }
+
+  .link-events__when {
+    grid-column: 1 / -1;
   }
 }

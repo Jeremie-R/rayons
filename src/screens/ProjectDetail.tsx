@@ -4,7 +4,7 @@ import connectorDot from '../assets/event-connector.svg'
 import { EventDialog, newDraft, type EventEditing } from '../calendar/EventDialog'
 import { AddEventIcon, ArchiveIcon, AttachmentIcon, BackIcon, CloseIcon, EditIcon, InboxIcon, MailIcon, MoreIcon, PlusIcon, TrashIcon } from '../components/icons'
 import { Menu, MenuItem, MenuSeparator, useFeedback } from '../components/overlays'
-import { Button, EmptyState, ErrorNote, IconButton, Loading, TagChip } from '../components/ui'
+import { Button, EmptyState, ErrorNote, IconButton, Loading, TagChip, TagDot } from '../components/ui'
 import { invalidate, keys, useBackend, useQuery } from '../data/store'
 import { formatBytes, formatDay, formatTime, parseDate } from '../lib/dates'
 import { useAutosave, useIsMobile } from '../lib/hooks'
@@ -159,11 +159,11 @@ function EventsSection({ project }: { project: Project }) {
     strip.current.scrollLeft = card ? card.offsetLeft - strip.current.offsetLeft - 8 : 0
   }, [firstUpcoming])
 
-  const add = () => {
+  const add = (anchor?: DOMRect) => {
     const at = new Date()
     at.setDate(at.getDate() + 1)
     at.setHours(10, 0, 0, 0)
-    setEditing({ mode: 'create', draft: newDraft(at, { projectId: project.id }) })
+    setEditing({ mode: 'create', draft: newDraft(at, { projectId: project.id }), anchor })
   }
 
   return (
@@ -173,11 +173,11 @@ function EventsSection({ project }: { project: Project }) {
         {events?.map((event, index) => (
           <div key={event.id} className="event-strip__item">
             {index > 0 && <img src={connectorDot} width={32} height={32} alt="" className="event-strip__connector" />}
-            <EventCard event={event} past={index < firstUpcoming || firstUpcoming === -1} onOpen={() => setEditing({ mode: 'edit', event })} />
+            <EventCard event={event} past={index < firstUpcoming || firstUpcoming === -1} onOpen={(anchor) => setEditing({ mode: 'edit', event, anchor })} />
           </div>
         ))}
         <div className="event-strip__add">
-          <IconButton icon={AddEventIcon} label="Add an event to this project" variant="round" onClick={add} />
+          <IconButton icon={AddEventIcon} label="Add an event to this project" variant="round" onClick={(e) => add(e.currentTarget.getBoundingClientRect())} />
         </div>
       </div>
       <EventDialog editing={editing} onClose={() => setEditing(null)} />
@@ -185,13 +185,16 @@ function EventsSection({ project }: { project: Project }) {
   )
 }
 
-function EventCard({ event, past, onOpen }: { event: CalendarEvent; past: boolean; onOpen: () => void }) {
+function EventCard({ event, past, onOpen }: { event: CalendarEvent; past: boolean; onOpen: (anchor: DOMRect) => void }) {
   const start = parseDate(event.start)
   return (
-    <button type="button" className={`event-card ${past ? 'is-past' : ''}`} data-tag={event.tag ?? 'none'} onClick={onOpen}>
+    <button type="button" className={`event-card ${past ? 'is-past' : ''}`} onClick={(e) => onOpen(e.currentTarget.getBoundingClientRect())}>
       <span className="event-card__when">
         <span>{formatDay(start)}</span>
-        <span>{event.allDay ? 'all day' : formatTime(start)}</span>
+        <span className="event-card__time">
+          {event.tag && <TagDot tag={event.tag} />}
+          {event.allDay ? 'all day' : formatTime(start)}
+        </span>
       </span>
       <span className="event-card__title">{event.title}</span>
       {event.location && <span className="event-card__where">{event.location}</span>}
@@ -260,8 +263,8 @@ function FilesSection({ project }: { project: Project }) {
       >
         {files?.map((file) => (
           <span key={file.id} className="file">
-            <button type="button" className="file__open" onClick={() => open(file)} title={`${file.name} · ${formatBytes(file.size)}${file.source === 'mail' ? ' · from mail' : ''}`}>
-              {file.source === 'mail' ? <MailIcon size={20} /> : <AttachmentIcon size={20} />}
+            <button type="button" className="file__open" onClick={() => open(file)} data-tooltip={`${file.name} · ${formatBytes(file.size)}${file.source === 'mail' ? ' · attached to a mail' : ''}`}>
+              <AttachmentIcon size={20} />
               <span className="file__name">{file.name}</span>
             </button>
             {file.source === 'upload' && (

@@ -5,7 +5,7 @@
 | Object | Lives in | Holds | Links |
 |---|---|---|---|
 | Mail thread | Gmail | subject, messages, read/unread, archived, spam | one tag, 0–1 project |
-| Calendar event | Google Calendar | title, time, place, notes | one tag, 0–1 project |
+| Calendar event | Google Calendar | title, time, place, notes | one tag, 0–1 project, 0–1 mail thread |
 | Project | Supabase | name, notes, active/archived | 0–many threads, events, files |
 | File | Supabase Storage, or a Gmail attachment | the file | one project |
 | Tag | fixed set | admin, event, buy, knowledge; none = "other" | threads and events |
@@ -20,7 +20,7 @@ Rayons doesn't copy mail or events. It stores links *in Google*:
 |---|---|
 | Tag on a thread | Gmail label `Rayons/<tag>` |
 | Thread in a project | Gmail label `Rayons/Projects/<project name>` (label id kept on the project row) |
-| Tag or project on an event | private extended properties `rayonsTag`, `rayonsProject` on the event |
+| Tag, project or mail on an event | private extended properties `rayonsTag`, `rayonsProject`, `rayonsThread` on the event |
 | Unread, archived, spam, trash | Gmail's own `UNREAD`, `INBOX`, `SPAM`, `TRASH` |
 
 Why:
@@ -30,6 +30,10 @@ Why:
 - Private extended properties stay on *your* copy of an event, even one someone else organised.
 
 The cost: every screen asks Google, so lists take a few hundred milliseconds, and there are no notifications yet. When that starts to hurt, the next step is a cache table in Supabase fed by Gmail push notifications (`users.watch` through Pub/Sub) and Calendar sync tokens. The screens wouldn't change; only `liveBackend` would.
+
+An event can belong with a mail without any project (an invitation, a booking): it carries the thread id, and the conversation shows those events in a small calendar rail. "New event from this mail" takes its title from the subject and its date from the first date written in the mail, when there is one (`src/lib/guessDate.ts`).
+
+Speed: the browser keeps recent lists and conversations on the device (localStorage, live accounts only, cleared on sign-out) and shows them at once while fresh ones load; archive, trash and spam take the row out of the list before the server answers; hovering a row, and the conversations either side of the open one, load ahead. On the server, inbox rows come from one Gmail batch request rather than one request each, the sign-in token is checked locally against Supabase's published keys, and every api/ response carries a `Server-Timing` header (auth, account, list, threads, total) to see where time goes.
 
 Projects keep two numbers from Google so the project list loads instantly: the rolled-up `tags` and `unread_count`. The server refreshes them after a change and every few minutes when the list is open (`server/projects.ts`).
 
@@ -48,7 +52,7 @@ Still open (next steps):
 - Merge two projects.
 - Reply with a file from the project, or upload one.
 - Several Google accounts per person (the tables allow it; the screens assume one).
-- Dragging events to move them; notifications; dark mode; offline.
+- Dragging events to move them; notifications; offline.
 
 ## Sign-in and tokens
 

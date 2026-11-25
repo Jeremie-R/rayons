@@ -1,13 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { addDays, dateKey, formatLongDay, formatMonthYear, formatTime, formatWeekday, isSameDay, minutesIntoDay, parseDate, startOfMonth, startOfWeek } from '../lib/dates'
-import type { CalendarEvent, Project } from '../lib/types'
+import type { CalendarEvent, EventDraft, Project } from '../lib/types'
 import { eventRange, eventsOnDay, HOUR_HEIGHT, isBanner, layoutBanners, layoutDay } from './layout'
 
 interface ViewProps {
   events: CalendarEvent[]
-  onOpen: (event: CalendarEvent) => void
-  onCreate: (at: Date, allDay?: boolean) => void
+  /** `anchor` is where the click happened, so the editor can open next to it. */
+  onOpen: (event: CalendarEvent, anchor: DOMRect) => void
+  onCreate: (at: Date, allDay: boolean, anchor: DOMRect) => void
 }
+
+const rectOf = (event: { currentTarget: Element }) => event.currentTarget.getBoundingClientRect()
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 const tagOf = (event: CalendarEvent) => event.tag ?? 'none'
@@ -20,7 +23,7 @@ function timeRange(event: CalendarEvent) {
 // ---------------------------------------------------------------------------------------------
 // Week and day: a time grid.
 
-export function TimeGrid({ days, events, onOpen, onCreate }: ViewProps & { days: Date[] }) {
+export function TimeGrid({ days, events, onOpen, onCreate, ghost }: ViewProps & { days: Date[]; ghost?: EventDraft | null }) {
   const scroller = useRef<HTMLDivElement>(null)
   const now = useNow()
   const banners = layoutBanners(events, days)
@@ -40,7 +43,8 @@ export function TimeGrid({ days, events, onOpen, onCreate }: ViewProps & { days:
     const minutes = Math.floor(((y / HOUR_HEIGHT) * 60) / 30) * 30
     const at = new Date(day)
     at.setHours(0, minutes, 0, 0)
-    onCreate(at)
+    const column = event.currentTarget.getBoundingClientRect()
+    onCreate(at, false, new DOMRect(column.left, column.top + (minutes / 60) * HOUR_HEIGHT, column.width, HOUR_HEIGHT))
   }
 
   return (
@@ -56,7 +60,7 @@ export function TimeGrid({ days, events, onOpen, onCreate }: ViewProps & { days:
         <div className="time-grid__corner time-grid__corner--allday">
           <span className="visually-hidden">All day</span>
         </div>
-        <div className="banners" style={{ gridTemplateRows: `repeat(${bannerRows}, 30px)` }} onDoubleClick={(e) => e.target === e.currentTarget && onCreate(days[0], true)}>
+        <div className="banners" style={{ gridTemplateRows: `repeat(${bannerRows}, 30px)` }} onDoubleClick={(e) => e.target === e.currentTarget && onCreate(days[0], true, rectOf(e))}>
           {banners.map((banner) => (
             <button
               key={banner.event.id}
@@ -64,7 +68,7 @@ export function TimeGrid({ days, events, onOpen, onCreate }: ViewProps & { days:
               className={`banner ${banner.continuesBefore ? 'continues-before' : ''} ${banner.continuesAfter ? 'continues-after' : ''}`}
               data-tag={tagOf(banner.event)}
               style={{ gridColumn: `${banner.from + 1} / ${banner.to + 2}`, gridRow: banner.row + 1 }}
-              onClick={() => onOpen(banner.event)}
+              onClick={(e) => onOpen(banner.event, rectOf(e))}
               title={banner.event.title}
             >
               {banner.event.title}
@@ -94,13 +98,14 @@ export function TimeGrid({ days, events, onOpen, onCreate }: ViewProps & { days:
                     className={`event-block ${height < 44 ? 'is-short' : ''}`}
                     data-tag={tagOf(event)}
                     style={{ top, height, left: `calc(${(column / columns) * 100}% + 4px)`, width: `calc(${100 / columns}% - 8px)` }}
-                    onClick={() => onOpen(event)}
+                    onClick={(e) => onOpen(event, rectOf(e))}
                   >
                     <span className="event-block__title">{event.title || '(no title)'}</span>
                     {height >= 44 && <span className="event-block__time">{timeRange(event)}</span>}
                     {height >= 80 && event.location && <span className="event-block__where">{event.location}</span>}
                   </button>
                 ))}
+                {ghost && !ghost.allDay && <GhostBlock draft={ghost} day={day} />}
                 {today && <span className="now-line" style={{ top: (minutesIntoDay(now) / 60) * HOUR_HEIGHT }} aria-hidden="true" />}
               </div>
             )
@@ -136,14 +141,14 @@ export function MonthGrid({ cursor, events, onOpen, onCreate, onDay }: ViewProps
               if (e.target !== e.currentTarget) return
               const at = new Date(day)
               at.setHours(9)
-              onCreate(at)
+              onCreate(at, false, rectOf(e))
             }}
           >
             <button type="button" className="month-cell__date" onClick={() => onDay(day)} aria-label={formatLongDay(day)}>
               {day.getDate()}
             </button>
             {visible.map((event) => (
-              <button key={event.id} type="button" className={`month-event ${isBanner(event) ? 'is-banner' : ''}`} data-tag={tagOf(event)} onClick={() => onOpen(event)}>
+              <button key={event.id} type="button" className={`month-event ${isBanner(event) ? 'is-banner' : ''}`} data-tag={tagOf(event)} onClick={(e) => onOpen(event, rectOf(e))}>
                 {!isBanner(event) && <span className="month-event__time">{formatTime(parseDate(event.start))}</span>}
                 <span className="month-event__title">{event.title}</span>
               </button>
@@ -233,7 +238,7 @@ export function Schedule({ from, days, events, onOpen, projects, onMore }: Omit<
           <ul role="list">
             {dayEvents.map((event) => (
               <li key={event.id}>
-                <button type="button" className="schedule__event" data-tag={tagOf(event)} onClick={() => onOpen(event)}>
+                <button type="button" className="schedule__event" data-tag={tagOf(event)} onClick={(e) => onOpen(event, rectOf(e))}>
                   <span className="schedule__time">{isBanner(event) ? 'all day' : timeRange(event)}</span>
                   <span className="schedule__bar" aria-hidden="true" />
                   <span className="schedule__what">
@@ -254,6 +259,18 @@ export function Schedule({ from, days, events, onOpen, projects, onMore }: Omit<
         </button>
       </div>
     </div>
+  )
+}
+
+/** The slot being created, drawn dashed in the grid while the editor is open. */
+function GhostBlock({ draft, day }: { draft: EventDraft; day: Date }) {
+  const placed = layoutDay([{ ...draft, id: 'ghost', calendarId: '', canEdit: true }], day)[0]
+  if (!placed) return null
+  return (
+    <span className="event-block event-block--ghost" style={{ top: placed.top, height: placed.height, left: 4, width: 'calc(100% - 8px)' }} aria-hidden="true">
+      <span className="event-block__title">{draft.title || '(no title)'}</span>
+      <span className="event-block__time">{timeRange({ ...draft, id: 'ghost', calendarId: '', canEdit: true })}</span>
+    </span>
   )
 }
 

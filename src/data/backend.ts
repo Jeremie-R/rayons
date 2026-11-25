@@ -40,6 +40,8 @@ export interface Backend {
   listCalendars(): Promise<CalendarInfo[]>
   /** Events overlapping [from, to), ISO dates. */
   listEvents(from: string, to: string, options?: { projectId?: string }): Promise<CalendarEvent[]>
+  /** Events linked to a mail conversation (any date). */
+  listThreadEvents(threadId: string): Promise<CalendarEvent[]>
   createEvent(draft: EventDraft): Promise<CalendarEvent>
   updateEvent(id: string, patch: Partial<EventDraft>): Promise<CalendarEvent>
   deleteEvent(id: string): Promise<void>

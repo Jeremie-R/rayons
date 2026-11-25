@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { AddToProjectIcon, FilterIcon, ProjectsIcon } from '../components/icons'
 import { Dialog, Menu, MenuHeading, MenuItem, MenuSeparator, useFeedback } from '../components/overlays'
 import { Button, EmptyState, ErrorNote, IconButton, Loading, TagDot, TagDots } from '../components/ui'
+import { ResizeHandle, useListWidth } from '../components/ResizeHandle'
 import { invalidate, keys, useBackend, useQuery } from '../data/store'
+import { useShortcut } from '../lib/shortcuts'
 import { useIsMobile } from '../lib/hooks'
 import { TAG_INFO } from '../lib/tags'
 import { TAGS, type Project, type TagId } from '../lib/types'
@@ -32,6 +34,16 @@ export function ProjectsScreen() {
   const archivedWithNews = (data ?? []).filter((p) => p.status === 'archived' && p.unreadCount > 0).length
 
   const query = params.size ? `?${params}` : ''
+  const [listWidth, setListWidth] = useListWidth()
+  const step = (direction: 1 | -1) => {
+    if (projects.length === 0) return
+    const index = projects.findIndex((p) => p.id === projectId)
+    const next = projects[index < 0 ? 0 : Math.max(0, Math.min(projects.length - 1, index + direction))]
+    if (next && next.id !== projectId) navigate(`/projects/${next.id}${query}`)
+  }
+  useShortcut('c', () => setCreating(true))
+  useShortcut('j', () => step(1), !threadId)
+  useShortcut('k', () => step(-1), !threadId)
   // On a phone, a conversation opened from a project gets the whole screen.
   if (mobile && projectId && threadId) {
     return (
@@ -45,7 +57,7 @@ export function ProjectsScreen() {
 
   const showList = !mobile || !projectId
   return (
-    <div className="split">
+    <div className="split" style={{ '--list': `${listWidth}px` } as CSSProperties}>
       {showList && (
         <section className="list-pane" aria-label="Projects">
           <header className="list-pane__header list-pane__header--compact">
@@ -74,7 +86,7 @@ export function ProjectsScreen() {
                   </>
                 )}
               </Menu>
-              <IconButton icon={AddToProjectIcon} label="New project" variant="round" onClick={() => setCreating(true)} />
+              <IconButton icon={AddToProjectIcon} label="New project" shortcut="c" variant="round" onClick={() => setCreating(true)} />
             </div>
           </header>
           <div className="list-pane__body">
@@ -98,7 +110,7 @@ export function ProjectsScreen() {
                     >
                       <span className="project-row__name">{project.name}</span>
                       {project.unreadCount > 0 && (
-                        <span className="count-badge" title={`${project.unreadCount} unread`}>
+                        <span className="count-badge" data-tooltip={`${project.unreadCount} unread`}>
                           {project.unreadCount} new
                         </span>
                       )}
@@ -117,6 +129,8 @@ export function ProjectsScreen() {
           </div>
         </section>
       )}
+
+      {showList && (!mobile || projectId) && <ResizeHandle width={listWidth} onChange={setListWidth} />}
 
       {(!mobile || projectId) && (
         <section className="detail-pane" aria-label="Project">

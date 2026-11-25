@@ -3,6 +3,7 @@ import { isIP } from 'node:net'
 import type { Attachment, Draft, Message, Person, ProjectFile, TagId, Thread, ThreadQuery, ThreadSummary } from '../src/lib/types.js'
 import { GMAIL, inParallel, type Google } from './google.js'
 import { HttpError } from './http.js'
+import { timed } from './timing.js'
 import { adminClient } from './supabase.js'
 
 // Gmail ↔ Rayons. Tags are Gmail labels "Rayons/admin"…; a project is a label
@@ -214,9 +215,26 @@ export async function listThreads(google: Google, userId: string, query: ThreadQ
   if (q.length) params.set('q', q.join(' '))
   if (includeSpamTrash) params.set('includeSpamTrash', 'true')
 
-  const list = await google.request<{ threads?: { id: string }[] }>(`${GMAIL}/threads?${params}`)
-  const threads = await inParallel(list.threads ?? [], 10, (t) => google.request<GThread>(`${GMAIL}/threads/${t.id}?format=metadata&${METADATA}`))
+  const list = await timed('list', google.request<{ threads?: { id: string }[] }>(`${GMAIL}/threads?${params}`))
+  const threads = await timed('threads', threadsMetadata(google, (list.threads ?? []).map((t) => t.id)))
   return threads.filter((t) => t.messages?.length).map((t) => summarize(t, tags, projects))
+}
+
+/** Thread metadata for many threads: one batch request, then single requests for any that failed. */
+async function threadsMetadata(google: Google, ids: string[]): Promise<GThread[]> {
+  const path = (id: string) => `/gmail/v1/users/me/threads/${id}?format=metadata&${METADATA}`
+  let results: (GThread | null)[] = []
+  try {
+    results = await google.batch<GThread>('gmail/v1', ids.map(path))
+  } catch (error) {
+    console.warn('Batch failed, falling back to single requests', error)
+    results = ids.map(() => null)
+  }
+  const missing = ids.map((id, index) => (results[index] ? null : { id, index })).filter((x): x is { id: string; index: number } => x !== null)
+  await inParallel(missing, 8, async ({ id, index }) => {
+    results[index] = await google.request<GThread>(`${GMAIL}/threads/${id}?format=metadata&${METADATA}`)
+  })
+  return results.filter((t): t is GThread => t !== null)
 }
 
 function decodeBody(part: GPart): string {
@@ -249,8 +267,10 @@ function toMessage(message: GMessage): Message {
   const walk = (part: GPart) => {
     const disposition = header(part, 'Content-Disposition').toLowerCase()
     if (part.filename && part.body?.attachmentId) {
-      // Inline pictures referenced by the HTML (logos, signatures) aren't listed as attachments.
-      if (!(disposition.startsWith('inline') && header(part, 'Content-ID'))) {
+      // Inline pictures referenced by the HTML (logos, signatures) aren't listed as attachments,
+      // nor are forwarded mails and calendar invitations.
+      const notAFile = /^(message\/rfc822|text\/calendar|application\/ics)$/i.test(part.mimeType) || /\.(eml|ics)$/i.test(part.filename)
+      if (!notAFile && !(disposition.startsWith('inline') && header(part, 'Content-ID'))) {
         attachments.push({ id: part.body.attachmentId, messageId: message.id, filename: part.filename, mimeType: part.mimeType, size: part.body.size })
       }
       return

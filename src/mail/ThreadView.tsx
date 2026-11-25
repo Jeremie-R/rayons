@@ -1,14 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
+import { EventDialog, newDraft, type EventEditing } from '../calendar/EventDialog'
 import {
+  AddEventIcon,
   AddToProjectIcon,
   ArchiveIcon,
   AttachmentIcon,
   BackIcon,
+  CalendarIcon,
   FolderIcon,
   InboxIcon,
+  LinkIcon,
   MailIcon,
   MoreIcon,
+  PlusIcon,
   ReplyIcon,
   SpamIcon,
   TrashIcon,
@@ -16,20 +21,23 @@ import {
 } from '../components/icons'
 import { Menu, MenuItem, MenuSeparator, useFeedback } from '../components/overlays'
 import { ProjectPicker, TagPicker } from '../components/pickers'
-import { Avatar, ErrorNote, IconButton, Loading } from '../components/ui'
+import { Avatar, ErrorNote, IconButton, Loading, TagDot, tooltip } from '../components/ui'
 import { keys, useBackend, useQuery } from '../data/store'
 import { formatDay, formatListDate, formatTime, parseDate } from '../lib/dates'
-import { useIsMobile, useShortcut } from '../lib/hooks'
+import { guessDate } from '../lib/guessDate'
+import { useIsMobile } from '../lib/hooks'
+import { useShortcut } from '../lib/shortcuts'
 import { tagLabel } from '../lib/tags'
-import type { Attachment, Message, Thread } from '../lib/types'
+import type { Attachment, CalendarEvent, Message, Thread } from '../lib/types'
 import { errorText, useMailActions } from './actions'
 import { ReplyComposer } from './Composer'
-import { MessageBody } from './MessageBody'
+import { LinkEventDialog } from './LinkEventDialog'
+import { MessageBody, splitQuoted } from './MessageBody'
 
 interface ThreadViewProps {
   threadId: string
   onBack?: () => void
-  /** Inside a project page: smaller header, and no "part of project" strip. */
+  /** Inside a project page: smaller header, no "part of project" strip, no shortcuts. */
   embedded?: boolean
   /** Called after the thread leaves the current list (archived, trashed, spam). */
   onGone?: () => void
@@ -46,13 +54,19 @@ export function ThreadView({ threadId, onBack, embedded, onGone, markRead = true
   return <LoadedThread key={thread.id} thread={thread} onBack={onBack} embedded={embedded} onGone={onGone} markRead={markRead} />
 }
 
+const stripPrefixes = (subject: string) => subject.replace(/^((re|fwd?|sv|vs|aw|tr|antw)\s*:\s*)+/i, '').trim()
+
 function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: Thread } & Omit<ThreadViewProps, 'threadId'>) {
   const backend = useBackend()
   const actions = useMailActions()
   const mobile = useIsMobile()
   const [replying, setReplying] = useState(false)
+  const [editing, setEditing] = useState<EventEditing | null>(null)
+  const [linking, setLinking] = useState(false)
   const me = backend.account.email.toLowerCase()
+  const article = useRef<HTMLElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const { data: events } = useQuery(keys.threadEvents(thread.id), () => backend.listThreadEvents(thread.id))
 
   // Newest first, as in the design. The newest message and any unread ones start open.
   const messages = [...thread.messages].reverse()
@@ -73,12 +87,37 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
     setReplying(true)
     scroller.current?.scrollTo({ top: 0, behavior: 'smooth' })
   }
+  const openMenu = (name: string) => article.current?.querySelector<HTMLButtonElement>(`[data-menu="${name}"]`)?.click()
 
-  useShortcut('e', archive, !embedded)
-  useShortcut('#', trash, !embedded)
-  useShortcut('r', reply, !embedded)
-  useShortcut('u', () => void actions.setRead(thread, false), !embedded)
-  useShortcut('Escape', () => onBack?.(), !embedded && !!onBack)
+  // A new event, dated from the mail when it mentions a date.
+  const eventFromMail = (anchor?: DOMRect) => {
+    const latest = messages[0]
+    const guess = guessDate(`${thread.subject}\n${latest ? splitQuoted(latest.text)[0] : ''}`)
+    const at = guess?.start ?? (() => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(9, 0, 0, 0)
+      return tomorrow
+    })()
+    setEditing({
+      mode: 'create',
+      draft: newDraft(at, { title: stripPrefixes(thread.subject), threadId: thread.id, tag: thread.tag, projectId: thread.projectId }),
+      anchor,
+    })
+  }
+
+  const shortcuts = !embedded
+  useShortcut('e', archive, shortcuts)
+  useShortcut('#', trash, shortcuts)
+  useShortcut('!', spam, shortcuts)
+  useShortcut('r', reply, shortcuts)
+  useShortcut('U', () => void actions.setRead(thread, false).then(() => onBack?.()), shortcuts)
+  useShortcut('I', () => void actions.setRead(thread, true), shortcuts)
+  useShortcut('l', () => openMenu('tag'), shortcuts)
+  useShortcut('p', () => openMenu('project'), shortcuts)
+  useShortcut('v', () => openMenu('calendar'), shortcuts)
+  useShortcut('u', () => onBack?.(), shortcuts && !!onBack)
+  useShortcut('Escape', () => onBack?.(), shortcuts && !!onBack)
 
   const tagTrigger = (
     <TagPicker
@@ -86,7 +125,14 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
       onChange={(tag) => actions.setTag(thread, tag)}
       label="Tag this conversation"
       trigger={(props) => (
-        <button type="button" {...props} data-tag={thread.tag ?? 'none'} className={`tag tag--button ${thread.tag ? '' : 'tag--empty'}`} title="Change tag">
+        <button
+          type="button"
+          {...props}
+          data-menu="tag"
+          data-tag={thread.tag ?? 'none'}
+          className={`tag tag--button ${thread.tag ? '' : 'tag--empty'}`}
+          {...tooltip('Tag', shortcuts ? 'l' : undefined)}
+        >
           {thread.tag ? tagLabel(thread.tag) : '+ tag'}
         </button>
       )}
@@ -97,18 +143,56 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
     <ProjectPicker
       value={thread.projectId}
       onChange={(projectId, project) => actions.setProject(thread, projectId, project)}
-      trigger={(props) => <IconButton {...props} icon={AddToProjectIcon} label={thread.projectId ? 'Change project' : 'Add to project'} size={24} />}
+      trigger={(props) => (
+        <IconButton {...props} data-menu="project" icon={AddToProjectIcon} label={thread.projectId ? 'Change project' : 'Add to project'} shortcut={shortcuts ? 'p' : undefined} size={24} />
+      )}
     />
   )
 
+  const calendarButton = (
+    <Menu label="Add to calendar" trigger={(props) => <IconButton {...props} data-menu="calendar" icon={AddEventIcon} label="Add to calendar" shortcut={shortcuts ? 'v' : undefined} size={24} />}>
+      {(close) => (
+        <>
+          <MenuItem
+            icon={PlusIcon}
+            onSelect={() => {
+              close()
+              eventFromMail(article.current?.querySelector('[data-menu="calendar"]')?.getBoundingClientRect())
+            }}
+          >
+            New event from this mail
+          </MenuItem>
+          <MenuItem
+            icon={LinkIcon}
+            onSelect={() => {
+              close()
+              setLinking(true)
+            }}
+          >
+            Link an existing event…
+          </MenuItem>
+        </>
+      )}
+    </Menu>
+  )
+
   const archiveLabel = thread.archived ? 'Move to inbox' : 'Archive'
+  // On phones and inside projects, the less common actions move into the ⋯ menu.
+  const compact = mobile || embedded
   const secondary = (close: () => void) => (
     <>
-      <MenuItem icon={MailIcon} onSelect={() => (actions.setRead(thread, false), close(), onBack?.())}>
+      <MenuItem icon={MailIcon} onSelect={() => (actions.setRead(thread, false), close(), onBack?.())} hint={shortcuts ? '⇧U' : undefined}>
         Mark as unread
       </MenuItem>
-      {(mobile || embedded) && (
+      {compact && (
         <>
+          <MenuItem icon={AddEventIcon} onSelect={() => (close(), eventFromMail())}>
+            New event from this mail
+          </MenuItem>
+          <MenuItem icon={LinkIcon} onSelect={() => (close(), setLinking(true))}>
+            Link an existing event…
+          </MenuItem>
+          <MenuSeparator />
           <MenuItem icon={TrashIcon} onSelect={() => (close(), void trash())}>
             Move to trash
           </MenuItem>
@@ -133,28 +217,28 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
     </>
   )
 
+  const linked = events ?? []
+  const showRail = !embedded && linked.length > 0
+
   return (
-    <article className={`thread ${embedded ? 'thread--embedded' : ''}`} aria-label={thread.subject}>
+    <article ref={article} className={`thread ${embedded ? 'thread--embedded' : ''}`} aria-label={thread.subject}>
       <header className="hero thread__hero">
         <div className="hero__title">
-          {onBack && <IconButton icon={BackIcon} label="Back" size={24} onClick={onBack} className="hero__back" />}
-          <h1 className="hero__heading">{thread.subject}</h1>
+          {onBack && <IconButton icon={BackIcon} label="Back to the list" shortcut={shortcuts ? 'u' : undefined} size={24} onClick={onBack} className="hero__back" />}
+          <h1 className="hero__heading" data-tooltip={thread.subject} data-tooltip-truncated="">
+            {thread.subject}
+          </h1>
           {!mobile && tagTrigger}
         </div>
         <div className="hero__actions" role="toolbar" aria-label="Conversation actions">
           {!embedded && projectButton}
-          {!embedded && <IconButton icon={thread.archived ? InboxIcon : ArchiveIcon} label={`${archiveLabel} (e)`} size={24} onClick={archive} />}
-          {!embedded && !mobile && (
+          {!compact && calendarButton}
+          {!embedded && <IconButton icon={thread.archived ? InboxIcon : ArchiveIcon} label={archiveLabel} shortcut={shortcuts ? 'e' : undefined} size={24} onClick={archive} />}
+          {!compact && (
             <>
-              <IconButton icon={TrashIcon} label="Move to trash (#)" size={24} onClick={trash} />
-              <IconButton icon={SpamIcon} label={thread.spam ? 'Not spam' : 'Report spam'} size={24} onClick={spam} />
-              <IconButton
-                icon={UnsubscribeIcon}
-                label={thread.canUnsubscribe ? 'Unsubscribe' : 'No unsubscribe link in this mail'}
-                size={24}
-                onClick={() => actions.unsubscribe(thread)}
-                disabled={!thread.canUnsubscribe}
-              />
+              <IconButton icon={TrashIcon} label="Move to trash" shortcut="#" size={24} onClick={trash} />
+              <IconButton icon={SpamIcon} label={thread.spam ? 'Not spam' : 'Report spam'} shortcut="!" size={24} onClick={spam} />
+              {thread.canUnsubscribe && <IconButton icon={UnsubscribeIcon} label="Unsubscribe" size={24} onClick={() => actions.unsubscribe(thread)} />}
             </>
           )}
           <Menu label="More actions" trigger={(props) => <IconButton {...props} icon={MoreIcon} label="More actions" size={24} />}>
@@ -165,37 +249,80 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
       </header>
 
       <div className="thread__scroll" ref={scroller}>
-        {!embedded && thread.projectId && <ProjectStrip projectId={thread.projectId} threadId={thread.id} />}
-        <div className="thread__messages">
-          {replying && <ReplyComposer thread={thread} onDone={() => setReplying(false)} />}
-          {messages.map((message, index) => (
-            <MessageItem
-              key={message.id}
-              message={message}
-              self={message.from.email.toLowerCase() === me}
-              open={expanded.has(message.id)}
-              divider={index > 0 || replying}
-              onToggle={() =>
-                setExpanded((set) => {
-                  const next = new Set(set)
-                  if (next.has(message.id)) next.delete(message.id)
-                  else next.add(message.id)
-                  return next
-                })
-              }
-            />
-          ))}
+        <div className={`thread__body ${showRail ? 'has-rail' : ''}`}>
+          <div className="thread__main">
+            {!embedded && thread.projectId && <ProjectStrip projectId={thread.projectId} threadId={thread.id} />}
+            <div className="thread__messages">
+              {replying && <ReplyComposer thread={thread} onDone={() => setReplying(false)} />}
+              {messages.map((message, index) => (
+                <MessageItem
+                  key={message.id}
+                  message={message}
+                  self={message.from.email.toLowerCase() === me}
+                  open={expanded.has(message.id)}
+                  divider={index > 0 || replying}
+                  onToggle={() =>
+                    setExpanded((set) => {
+                      const next = new Set(set)
+                      if (next.has(message.id)) next.delete(message.id)
+                      else next.add(message.id)
+                      return next
+                    })
+                  }
+                />
+              ))}
+            </div>
+          </div>
+          {showRail && <CalendarRail events={linked} onOpen={(event, anchor) => setEditing({ mode: 'edit', event, anchor })} onAdd={eventFromMail} />}
         </div>
         {!replying && (
           <div className="thread__reply">
-            <button type="button" className="pill-button" onClick={reply} title="Reply (r)">
+            <button type="button" className="pill-button" onClick={reply} {...tooltip('Reply', shortcuts ? 'r' : undefined)}>
               <ReplyIcon size={24} />
               Reply
             </button>
           </div>
         )}
       </div>
+
+      <EventDialog editing={editing} onClose={() => setEditing(null)} />
+      <LinkEventDialog open={linking} thread={thread} onClose={() => setLinking(false)} />
     </article>
+  )
+}
+
+/** Events that belong with this conversation, with or without a project. */
+function CalendarRail({ events, onOpen, onAdd }: { events: CalendarEvent[]; onOpen: (event: CalendarEvent, anchor: DOMRect) => void; onAdd: (anchor?: DOMRect) => void }) {
+  const now = Date.now()
+  return (
+    <aside className="calendar-rail" aria-label="Calendar">
+      <header className="calendar-rail__header">
+        <span className="calendar-rail__title">
+          <CalendarIcon size={16} />
+          Calendar
+        </span>
+        <IconButton icon={PlusIcon} label="New event from this mail" size={16} onClick={(e) => onAdd(e.currentTarget.getBoundingClientRect())} />
+      </header>
+      <ul className="calendar-rail__list" role="list">
+        {events.map((event) => {
+          const start = parseDate(event.start)
+          const past = parseDate(event.end).getTime() < now
+          return (
+            <li key={event.id}>
+              <button type="button" className={`rail-event ${past ? 'is-past' : ''}`} onClick={(e) => onOpen(event, e.currentTarget.getBoundingClientRect())}>
+                <span className="rail-event__when">
+                  {event.tag && <TagDot tag={event.tag} />}
+                  {formatDay(start)}
+                  {!event.allDay && <span className="muted"> · {formatTime(start)}</span>}
+                </span>
+                <span className="rail-event__title">{event.title}</span>
+                {event.location && <span className="rail-event__where muted">{event.location}</span>}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </aside>
   )
 }
 
@@ -209,7 +336,7 @@ function MessageItem({ message, self, open, divider, onToggle }: { message: Mess
           <span className="medium">{message.from.name || message.from.email}</span>
           {message.from.name && <span className="muted message__email">{message.from.email}</span>}
         </span>
-        <time className="message__date medium" dateTime={message.date} title={`${formatDay(date)} ${formatTime(date)}`}>
+        <time className="message__date medium" dateTime={message.date} {...tooltip(`${formatDay(date)} ${formatTime(date)}`)}>
           {open ? formatDay(date) : formatListDate(message.date)}
         </time>
       </button>
@@ -258,9 +385,8 @@ function ProjectStrip({ projectId, threadId }: { projectId: string; threadId: st
   const backend = useBackend()
   const { data: project } = useQuery(keys.project(projectId), () => backend.getProject(projectId))
   const { data: events } = useQuery(keys.projectEvents(projectId), () => backend.listProjectEvents(projectId))
+  const next = useMemo(() => events?.find((event) => parseDate(event.end).getTime() > Date.now()), [events])
   if (!project) return null
-  const now = Date.now()
-  const next = events?.find((event) => parseDate(event.end).getTime() > now)
   return (
     <Link to={`/projects/${project.id}/mail/${threadId}`} className="project-strip" data-tag={project.tags[0] ?? 'none'}>
       <FolderIcon size={16} />

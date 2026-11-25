@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { env, HttpError } from './http.js'
+import { timed } from './timing.js'
 
 let admin: SupabaseClient | null = null
 
@@ -18,14 +19,19 @@ export function publicClient() {
   return createClient(env('SUPABASE_URL'), key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
-/** The signed-in person behind `Authorization: Bearer <Supabase access token>`, or null. */
-export async function optionalUser(request: Request) {
+/**
+ * The signed-in person behind `Authorization: Bearer <Supabase access token>`, or null.
+ * The token's signature is checked locally against the project's published keys (cached),
+ * so this usually needs no round trip to Supabase.
+ */
+export async function optionalUser(request: Request): Promise<{ id: string } | null> {
   const header = request.headers.get('authorization') ?? ''
   const token = header.startsWith('Bearer ') ? header.slice(7) : ''
   if (!token) return null
-  const { data, error } = await adminClient().auth.getUser(token)
-  if (error || !data.user) return null
-  return data.user
+  const { data, error } = await timed('auth', adminClient().auth.getClaims(token))
+  const claims = data?.claims
+  if (error || !claims?.sub || claims.role !== 'authenticated' || claims.is_anonymous) return null
+  return { id: claims.sub }
 }
 
 export async function requireUser(request: Request) {

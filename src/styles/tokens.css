@@ -64,9 +64,60 @@
   --tabbar: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
+  --raised: #ffffff;
+  --toast-bg: #2e2e2e;
+  --toast-ink: #ffffff;
+  --toast-action: #d9c8ff;
+  --paper: #ffffff;
+
   --shadow-pop: 0 12px 32px rgba(30, 24, 48, 0.14), 0 2px 6px rgba(30, 24, 48, 0.08);
   --focus: 0 0 0 2px var(--page), 0 0 0 4px var(--accent);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/*
+ * Dark. Same structure, lighter inks on a near-black with a hint of the lavender accent.
+ * Every text pair keeps at least 4.5:1 (muted #a8a4b3 on #17151c is 7.6:1).
+ */
+:root[data-theme='dark'] {
+  --ink: #ecebef;
+  --ink-muted: #a8a4b3;
+  --ink-inverse: #17151c;
+  --line: #2e2b36;
+  --line-strong: #423e4c;
+  --page: #17151c;
+  --hover: #1e1c24;
+  --selected: #25222d;
+  --toggle: #26232e;
+  --raised: #322e3b;
+  --scrim: rgba(0, 0, 0, 0.55);
+
+  --accent: #bba9ff;
+  --accent-strong: #d3c7ff;
+  --accent-bg: #2b2546;
+  --accent-bg-hover: #372f5a;
+  --accent-line: rgba(187, 169, 255, 0.35);
+  --danger: #ff8d84;
+  --danger-bg: #3a1e1f;
+  --now: #ff6b5e;
+
+  --tag-admin: #f39ac8;
+  --tag-admin-bg: #3a1d2d;
+  --tag-event: #8ec5ff;
+  --tag-event-bg: #16293f;
+  --tag-buy: #ffae8a;
+  --tag-buy-bg: #3a2218;
+  --tag-knowledge: #82dca8;
+  --tag-knowledge-bg: #15301f;
+  --tag-none: #bba9ff;
+  --tag-none-bg: #2b2546;
+
+  --toast-bg: #ecebef;
+  --toast-ink: #17151c;
+  --toast-action: #493886;
+  --paper: #ffffff;
+
+  --shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 @media (max-width: 719px) {

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Backend } from '../data/backend'
 import { liveConfig } from '../data/config'
 import { createDemoBackend, resetDemo } from '../data/demoBackend'
+import { clearPersistedCache } from '../data/store'
 import type { Account } from '../lib/types'
 
 type CloudModule = typeof import('./cloud')
@@ -152,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    clearPersistedCache()
     if (cloud) await cloud.supabase().auth.signOut()
     setReconnectNeeded(false)
     setState({ status: 'signedOut' })

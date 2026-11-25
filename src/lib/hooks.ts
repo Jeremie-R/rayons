@@ -60,22 +60,4 @@ export function useAutosave<T>(value: T, save: (value: T) => Promise<void>, dela
   return state
 }
 
-/** Runs `handler` for a keyboard shortcut, unless the user is typing in a field. */
-export function useShortcut(key: string, handler: () => void, enabled = true) {
-  const ref = useRef(handler)
-  ref.current = handler
-  useEffect(() => {
-    if (!enabled) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return
-      const target = event.target as HTMLElement
-      if (target.closest('input, textarea, select, [contenteditable="true"], dialog[open]')) return
-      if (event.key === key) {
-        event.preventDefault()
-        ref.current()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [key, enabled])
-}
+export { useShortcut } from './shortcuts'

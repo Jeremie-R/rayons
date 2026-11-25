@@ -1,3 +1,5 @@
+import { timingHeader, withTiming } from './timing.js'
+
 // Small helpers shared by the api/ functions.
 
 export class HttpError extends Error {
@@ -13,15 +15,23 @@ export class HttpError extends Error {
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } })
 
-/** Turns thrown errors into JSON answers the app understands: { error, message }. */
-export async function handle(request: Request, run: (request: Request) => Promise<Response>) {
-  try {
-    return await run(request)
-  } catch (error) {
-    if (error instanceof HttpError) return json({ error: error.code, message: error.message }, error.status)
-    console.error(error)
-    return json({ error: 'server_error', message: 'Something went wrong on our side. Please try again.' }, 500)
-  }
+/** Turns thrown errors into JSON answers the app understands: { error, message }, and adds Server-Timing. */
+export function handle(request: Request, run: (request: Request) => Promise<Response>) {
+  return withTiming(async () => {
+    const start = performance.now()
+    let response: Response
+    try {
+      response = await run(request)
+    } catch (error) {
+      if (error instanceof HttpError) response = json({ error: error.code, message: error.message }, error.status)
+      else {
+        console.error(error)
+        response = json({ error: 'server_error', message: 'Something went wrong on our side. Please try again.' }, 500)
+      }
+    }
+    response.headers.set('Server-Timing', timingHeader(performance.now() - start))
+    return response
+  })
 }
 
 /** Reads a JSON body (POST only, JSON only, at most 2 MB). */

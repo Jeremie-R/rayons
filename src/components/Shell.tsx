@@ -1,15 +1,16 @@
 import type { ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useIsMobile } from '../lib/hooks'
+import { GlobalShortcuts } from './GlobalShortcuts'
 import { CalendarIcon, InboxIcon, ProjectsIcon, UserIcon } from './icons'
-import type { IconComponent } from './ui'
+import { tooltip, type IconComponent } from './ui'
 
-const NAV: { to: string; label: string; icon: IconComponent }[] = [
-  { to: '/inbox', label: 'Inbox', icon: InboxIcon },
-  { to: '/calendar', label: 'Calendar', icon: CalendarIcon },
-  { to: '/projects', label: 'Projects', icon: ProjectsIcon },
+const NAV: { to: string; label: string; icon: IconComponent; keys: string }[] = [
+  { to: '/inbox', label: 'Inbox', icon: InboxIcon, keys: 'g i' },
+  { to: '/calendar', label: 'Calendar', icon: CalendarIcon, keys: 'g c' },
+  { to: '/projects', label: 'Projects', icon: ProjectsIcon, keys: 'g p' },
 ]
-const ACCOUNT = { to: '/you', label: 'You', icon: UserIcon }
+const ACCOUNT = { to: '/you', label: 'You', icon: UserIcon, keys: 'g s' }
 
 /** Desktop: a 64px rail on the left. Phone: a tab bar at the bottom, hidden on detail screens. */
 export function Shell({ banner }: { banner?: ReactNode }) {
@@ -32,6 +33,7 @@ export function Shell({ banner }: { banner?: ReactNode }) {
         {banner}
         <Outlet />
       </div>
+      <GlobalShortcuts />
       {mobile && !detail && (
         <nav className="tabbar" aria-label="Main">
           {[...NAV, ACCOUNT].map(({ to, label, icon: Icon }) => (
@@ -46,9 +48,9 @@ export function Shell({ banner }: { banner?: ReactNode }) {
   )
 }
 
-function RailLink({ to, label, icon: Icon }: { to: string; label: string; icon: IconComponent }) {
+function RailLink({ to, label, icon: Icon, keys }: { to: string; label: string; icon: IconComponent; keys: string }) {
   return (
-    <NavLink to={to} className="rail__item" aria-label={label} title={label}>
+    <NavLink to={to} className="rail__item" aria-label={label} {...tooltip(label, keys)}>
       <Icon size={16} />
     </NavLink>
   )

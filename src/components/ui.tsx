@@ -4,22 +4,30 @@ import { tagLabel } from '../lib/tags'
 
 export type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
 
+/** Props that give any element the app's tooltip (see Tooltips.tsx). */
+export const tooltip = (label: string, shortcut?: string) => ({
+  'data-tooltip': label,
+  ...(shortcut ? { 'data-keys': shortcut, 'aria-keyshortcuts': shortcut.replace(' ', '+') } : {}),
+})
+
 interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   icon: IconComponent
   /** Read by screen readers and shown as a tooltip. */
   label: string
+  /** Shown as key caps in the tooltip, e.g. 'e', 'U', 'g i'. */
+  shortcut?: string
   /** `round`: the 40px lavender button from the design. `plain`: just the icon. */
   variant?: 'plain' | 'round'
   size?: 16 | 20 | 24
   active?: boolean
 }
 
-export function IconButton({ icon: Icon, label, variant = 'plain', size = 16, active, className = '', ...rest }: IconButtonProps) {
+export function IconButton({ icon: Icon, label, shortcut, variant = 'plain', size = 16, active, className = '', ...rest }: IconButtonProps) {
   return (
     <button
       type="button"
       aria-label={label}
-      title={label}
+      {...tooltip(label, shortcut)}
       className={`icon-button icon-button--${variant} ${active ? 'is-active' : ''} ${className}`}
       {...rest}
     >
@@ -32,11 +40,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'outline' | 'accent' | 'solid' | 'ghost' | 'danger'
   icon?: IconComponent
   size?: 'sm' | 'md' | 'lg'
+  /** Adds a tooltip naming the keyboard shortcut. */
+  shortcut?: string
+  hint?: string
 }
 
-export function Button({ variant = 'outline', icon: Icon, size = 'sm', className = '', children, ...rest }: ButtonProps) {
+export function Button({ variant = 'outline', icon: Icon, size = 'sm', className = '', children, shortcut, hint, ...rest }: ButtonProps) {
+  const tip = hint ?? (shortcut && typeof children === 'string' ? children : undefined)
   return (
-    <button type="button" className={`button button--${variant} button--${size} ${className}`} {...rest}>
+    <button type="button" className={`button button--${variant} button--${size} ${className}`} {...(tip ? tooltip(tip, shortcut) : {})} {...rest}>
       {Icon && <Icon size={size === 'lg' ? 24 : 16} />}
       {children}
     </button>
@@ -58,7 +70,7 @@ export function TagChip({ tag, active, onClick, label, className = '', title }: 
   const props = { 'data-tag': tag ?? 'none', className: `tag ${active ? 'is-active' : ''} ${onClick ? 'tag--button' : ''} ${className}` }
   if (!onClick) return <span {...props}>{text}</span>
   return (
-    <button type="button" {...props} onClick={onClick} aria-pressed={active} title={title}>
+    <button type="button" {...props} onClick={onClick} aria-pressed={active} {...(title ? tooltip(title) : {})}>
       {text}
     </button>
   )

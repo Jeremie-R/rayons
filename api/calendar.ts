@@ -7,7 +7,7 @@ import { requireUser } from '../server/supabase.js'
 
 type Body =
   | { action: 'listCalendars' }
-  | { action: 'listEvents'; timeMin: string; timeMax: string; projectId?: string }
+  | { action: 'listEvents'; timeMin: string; timeMax: string; projectId?: string; threadId?: string }
   | { action: 'createEvent'; draft: EventDraft; timeZone?: string }
   | { action: 'updateEvent'; id: string; patch: Partial<EventDraft>; timeZone?: string }
   | { action: 'deleteEvent'; id: string }
@@ -34,7 +34,9 @@ export function POST(request: Request) {
         return json(await calendar.listCalendars(google))
       case 'listEvents':
         if (!validTime(body.timeMin) || !validTime(body.timeMax)) throw new HttpError(400, 'bad_request', 'Unknown dates.')
-        return json(await calendar.listEvents(google, body.timeMin, body.timeMax, body.projectId))
+        if (body.threadId && !/^[A-Za-z0-9_-]{1,200}$/.test(body.threadId)) throw new HttpError(400, 'bad_request', 'Unknown conversation.')
+        if (body.projectId && !/^[0-9a-f-]{36}$/.test(body.projectId)) throw new HttpError(400, 'bad_request', 'Unknown project.')
+        return json(await calendar.listEvents(google, body.timeMin, body.timeMax, { projectId: body.projectId, threadId: body.threadId }))
       case 'createEvent': {
         const event = await calendar.createEvent(google, body.draft, validZone(body.timeZone))
         await touchProjects([event.projectId])

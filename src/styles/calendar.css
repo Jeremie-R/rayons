@@ -730,3 +730,119 @@
     white-space: normal;
   }
 }
+
+/* The slot being created */
+.event-block--ghost {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--accent-bg) 70%, transparent);
+  color: var(--accent);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.event-block--ghost::before {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+/* Event editor: a popover beside the event, not a modal ----------------------------------- */
+
+.event-popover {
+  position: fixed;
+  z-index: 60;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 8px 20px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-pop);
+  animation: pop-in 0.14s var(--ease);
+}
+
+.event-popover__header {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 -8px -4px 0;
+}
+
+.event-form__columns {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.event-form--wide .event-form__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.event-form__main,
+.event-form__side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.event-form--wide .event-form__side {
+  padding-left: 24px;
+  border-left: 1px solid var(--line);
+}
+
+.event-form__when {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-form .field__input--title {
+  border-color: transparent;
+  padding-left: 0;
+  font-size: var(--text-xl);
+  background: transparent;
+}
+
+.event-form .field__input--title:hover {
+  border-color: transparent;
+}
+
+.event-form .field__input--title:focus-visible {
+  box-shadow: none;
+  border-bottom-color: var(--accent);
+  border-radius: 0;
+}
+
+.linked-mail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--hover);
+}
+
+.linked-mail__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.linked-mail__link:hover .linked-mail__subject {
+  text-decoration: underline;
+}
+
+.linked-mail__subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-form__main > .field,
+.event-form__side > .field {
+  flex: none;
+}
