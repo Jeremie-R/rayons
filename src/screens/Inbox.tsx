@@ -19,7 +19,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'in-project', label: 'In a project' },
   { value: 'loose', label: 'Not in a project' },
 ]
-const TITLES: Record<MailBox, string> = { inbox: 'Inbox', archived: 'Archived', spam: 'Spam' }
+const TITLES: Record<MailBox, string> = { inbox: 'Inbox', archived: 'Archived', spam: 'Spam', sent: 'Sent' }
 
 export function InboxScreen() {
   const backend = useBackend()
@@ -29,7 +29,7 @@ export function InboxScreen() {
   const [params, setParams] = useSearchParams()
   const [composing, setComposing] = useState(false)
 
-  const box = (['archived', 'spam'].includes(params.get('box') ?? '') ? params.get('box') : 'inbox') as MailBox
+  const box = (['archived', 'spam', 'sent'].includes(params.get('box') ?? '') ? params.get('box') : 'inbox') as MailBox
   const tag = (TAGS as readonly string[]).includes(params.get('tag') ?? '') ? (params.get('tag') as TagId) : 'all'
   const filter = params.get('filter') as Filter | null
   const search = params.get('q') ?? ''
@@ -173,6 +173,14 @@ export function InboxScreen() {
           </header>
 
           <div className="list-pane__body">
+            {!!error && !!data && (
+              <div className="stale-note" role="status">
+                <span>Couldn’t refresh: {error instanceof Error ? error.message : 'something went wrong'}</span>
+                <button type="button" onClick={reload}>
+                  Retry
+                </button>
+              </div>
+            )}
             {error && !data ? (
               <ErrorNote error={error} onRetry={reload} />
             ) : !data ? (
@@ -182,12 +190,13 @@ export function InboxScreen() {
                 {search ? 'Try other words, or another tag.' : box === 'inbox' && tag !== 'all' ? `No ${tag} mail in your inbox.` : null}
               </EmptyState>
             ) : (
-              <ThreadList threads={threads} selectedId={threadId} onOpen={(t) => openThread(t.id)} projects={projects} onHover={(t) => load(t.id)} />
+              <ThreadList threads={threads} selectedId={threadId} onOpen={(t) => openThread(t.id)} projects={projects} onHover={(t) => load(t.id)} showRecipients={box === 'sent'} />
             )}
             <div className="list-pane__footer">
               {box === 'inbox' ? (
                 <>
                   <Button onClick={() => setParam('box', 'archived')}>show archived</Button>
+                  <Button onClick={() => setParam('box', 'sent')}>sent</Button>
                   <Button onClick={() => setParam('box', 'spam')}>inspect spam</Button>
                 </>
               ) : (

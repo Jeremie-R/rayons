@@ -12,9 +12,11 @@ interface ThreadListProps {
   projects?: Project[]
   /** Called when the pointer rests on a row, to load it ahead of a click. */
   onHover?: (thread: ThreadSummary) => void
+  /** Sent mail: show who it went to rather than who wrote last. */
+  showRecipients?: boolean
 }
 
-export function ThreadList({ threads, selectedId, onOpen, variant = 'full', projects, onHover }: ThreadListProps) {
+export function ThreadList({ threads, selectedId, onOpen, variant = 'full', projects, onHover, showRecipients }: ThreadListProps) {
   let hoverTimer: number | undefined
   const projectName = (id: string | null) => (id ? projects?.find((p) => p.id === id)?.name : undefined)
   return (
@@ -33,7 +35,7 @@ export function ThreadList({ threads, selectedId, onOpen, variant = 'full', proj
             >
               <span className="thread-row__top">
                 <span className="thread-row__from">
-                  {thread.from.name || thread.from.email}
+                  {showRecipients ? `To: ${(thread.to ?? []).map((p) => p.name || p.email).join(', ') || '(no one)'}` : thread.from.name || thread.from.email}
                   {thread.messageCount > 1 && <span className="thread-row__count">{thread.messageCount}</span>}
                 </span>
                 {thread.tag && <TagDot tag={thread.tag} />}

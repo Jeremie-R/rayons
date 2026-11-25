@@ -48,6 +48,8 @@ export interface ThreadSummary {
   snippet: string
   /** Who the latest message is from. */
   from: Person
+  /** Who the latest message went to (shown in Sent). */
+  to: Person[]
   /** ISO date-time of the latest message. */
   date: string
   unread: boolean
@@ -66,7 +68,7 @@ export interface Thread extends ThreadSummary {
   messages: Message[]
 }
 
-export type MailBox = 'inbox' | 'archived' | 'spam'
+export type MailBox = 'inbox' | 'archived' | 'spam' | 'sent'
 
 export interface ThreadQuery {
   box: MailBox

@@ -174,6 +174,8 @@ function summarize(thread: GThread, tags: Record<TagId, string>, projects: Proje
     subject: header(first?.payload, 'Subject') || '(no subject)',
     snippet: decodeEntities(last?.snippet ?? ''),
     from: parseAddresses(header(last?.payload, 'From'))[0] ?? { name: '', email: '' },
+    // Who you wrote to last (Gmail marks your own messages SENT), for the Sent list.
+    to: parseAddresses(header([...all].reverse().find((m) => m.labelIds?.includes('SENT'))?.payload ?? last?.payload, 'To')),
     date: new Date(Number(last?.internalDate ?? 0)).toISOString(),
     unread: labels.has('UNREAD'),
     archived: !labels.has('INBOX'),
@@ -204,13 +206,15 @@ export async function listThreads(google: Google, userId: string, query: ThreadQ
   } else if (query.box === 'spam') {
     labelIds.push('SPAM')
     includeSpamTrash = true
+  } else if (query.box === 'sent') {
+    labelIds.push('SENT')
   } else {
     q.push('-in:inbox', '-in:spam', '-in:trash', '-in:drafts', '-in:chats')
   }
   if (query.tag && query.tag !== 'all') labelIds.push(tags[query.tag])
   if (query.search?.trim()) q.push(query.search.trim().slice(0, 300))
 
-  const params = new URLSearchParams({ maxResults: '50' })
+  const params = new URLSearchParams({ maxResults: '30' })
   for (const id of labelIds) params.append('labelIds', id)
   if (q.length) params.set('q', q.join(' '))
   if (includeSpamTrash) params.set('includeSpamTrash', 'true')
@@ -220,18 +224,28 @@ export async function listThreads(google: Google, userId: string, query: ThreadQ
   return threads.filter((t) => t.messages?.length).map((t) => summarize(t, tags, projects))
 }
 
-/** Thread metadata for many threads: one batch request, then single requests for any that failed. */
+/**
+ * Thread metadata for many threads, in batches of 15 (one HTTP request each). Gmail allows
+ * about 25 thread reads a second per person, so bigger batches get refused; any that are,
+ * are fetched again on their own after a short pause, a few at a time.
+ */
+const BATCH_SIZE = 15
+
 async function threadsMetadata(google: Google, ids: string[]): Promise<GThread[]> {
   const path = (id: string) => `/gmail/v1/users/me/threads/${id}?format=metadata&${METADATA}`
-  let results: (GThread | null)[] = []
-  try {
-    results = await google.batch<GThread>('gmail/v1', ids.map(path))
-  } catch (error) {
-    console.warn('Batch failed, falling back to single requests', error)
-    results = ids.map(() => null)
+  const results: (GThread | null)[] = ids.map(() => null)
+  for (let start = 0; start < ids.length; start += BATCH_SIZE) {
+    const chunk = ids.slice(start, start + BATCH_SIZE)
+    try {
+      const answers = await google.batch<GThread>('gmail/v1', chunk.map(path))
+      answers.forEach((answer, i) => (results[start + i] = answer))
+    } catch (error) {
+      console.warn('Batch failed, falling back to single requests', error)
+    }
   }
   const missing = ids.map((id, index) => (results[index] ? null : { id, index })).filter((x): x is { id: string; index: number } => x !== null)
-  await inParallel(missing, 8, async ({ id, index }) => {
+  if (missing.length) await new Promise((resolve) => setTimeout(resolve, 600))
+  await inParallel(missing, 3, async ({ id, index }) => {
     results[index] = await google.request<GThread>(`${GMAIL}/threads/${id}?format=metadata&${METADATA}`)
   })
   return results.filter((t): t is GThread => t !== null)

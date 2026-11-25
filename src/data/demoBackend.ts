@@ -89,6 +89,7 @@ export function createDemoBackend(): Backend {
       subject: thread.subject,
       snippet: last.snippet,
       from: last.from,
+      to: [...thread.messages].reverse().find((m) => m.from.email === DEMO_ACCOUNT.email)?.to ?? last.to,
       date: last.date,
       unread: thread.unread,
       archived: thread.archived,
@@ -159,6 +160,9 @@ export function createDemoBackend(): Backend {
             if (thread.projectId !== query.projectId || thread.spam) return false
           } else if (query.box === 'spam') {
             if (!thread.spam) return false
+          } else if (query.box === 'sent') {
+            // Like Gmail's Sent: any conversation with a message from you.
+            if (thread.spam || !thread.messages.some((m) => m.from.email === DEMO_ACCOUNT.email)) return false
           } else if (thread.spam || thread.archived !== (query.box === 'archived')) {
             return false
           }

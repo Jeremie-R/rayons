@@ -167,6 +167,7 @@
 
 .list-pane__footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
   padding: 16px var(--gutter);
@@ -446,4 +447,22 @@
 .welcome__fine {
   font-size: var(--text-md);
   margin-top: 16px;
+}
+
+/* A saved list is on screen but the refresh failed. */
+.stale-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px var(--gutter);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: var(--text-md);
+}
+
+.stale-note button {
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  flex-shrink: 0;
 }

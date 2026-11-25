@@ -99,19 +99,21 @@ async function accessToken(account: GoogleAccount, force = false) {
 export function googleClient(account: GoogleAccount) {
   let token: Promise<string> | null = null
 
-  async function call(url: string, init: RequestInit = {}, retried = false): Promise<Response> {
+  async function call(url: string, init: RequestInit = {}, attempt = 0): Promise<Response> {
     token ??= accessToken(account)
     const response = await fetch(url, {
       ...init,
       headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${await token}` },
     })
-    if (response.status === 401 && !retried) {
+    if (response.status === 401 && attempt === 0) {
       token = accessToken(account, true)
-      return call(url, init, true)
+      return call(url, init, 1)
     }
-    if (response.status === 429 && !retried) {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      return call(url, init, true)
+    // Gmail allows about 25 conversation reads a second per person. When it says "slow down"
+    // (429, or 403 with a rate-limit reason) wait and try again, up to three times.
+    if ((response.status === 429 || (response.status === 403 && isRateLimit(await response.clone().text()))) && attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, 800 * 2 ** attempt + Math.random() * 300))
+      return call(url, init, attempt + 1)
     }
     return response
   }
@@ -122,10 +124,15 @@ export function googleClient(account: GoogleAccount) {
     const text = await response.text()
     if (!response.ok) {
       console.error('Google API error', response.status, url.replace(/\?.*/, ''), text.slice(0, 500))
+      const reason = text.match(/"reason":\s*"([^"]+)"/)?.[1] ?? ''
       if (response.status === 404) throw new HttpError(404, 'not_found', 'It is not there any more. It may have been deleted in Gmail or Google Calendar.')
       if (response.status === 409) throw new HttpError(409, 'conflict', 'That already exists in Google.')
-      if (response.status === 403) throw new HttpError(403, 'google_forbidden', 'Google did not allow that. You may need to sign in again to grant access.')
-      throw new HttpError(502, 'google_error', 'Google did not accept the change. Please try again.')
+      if (response.status === 429 || isRateLimit(text)) throw new HttpError(429, 'google_busy', 'Google asked Rayons to slow down. Wait a few seconds and try again.')
+      if (response.status === 400 && reason === 'failedPrecondition' && url.includes('gmail.googleapis.com')) {
+        throw new HttpError(409, 'no_gmail', `This Google account (${account.email}) has no Gmail mailbox. Sign in with your Gmail account instead.`)
+      }
+      if (response.status === 403) throw new HttpError(403, 'google_forbidden', `Google did not allow that${reason ? ` (${reason})` : ''}. You may need to sign in again to grant access.`)
+      throw new HttpError(502, 'google_error', `Google did not accept that${reason ? ` (${reason})` : ''}. Please try again.`)
     }
     return (text ? JSON.parse(text) : undefined) as T
   }
@@ -166,6 +173,8 @@ export function googleClient(account: GoogleAccount) {
 
   return { call, request, batch, account }
 }
+
+const isRateLimit = (body: string) => /rateLimitExceeded|userRateLimitExceeded|RESOURCE_EXHAUSTED|concurrent requests/i.test(body)
 
 export type Google = ReturnType<typeof googleClient>
 
