@@ -37,7 +37,7 @@ export interface Backend {
   attachmentUrl(messageId: string, attachmentId: string, filename: string, mimeType: string): Promise<string>
 
   /** Translation through a service (when the browser can't translate on the device). */
-  translate(texts: string[], target: string): Promise<{ text: string; source: string }[]>
+  translate(texts: string[], target: string, format?: 'text' | 'html'): Promise<{ text: string; source: string }[]>
 
   // Calendar
   listCalendars(): Promise<CalendarInfo[]>

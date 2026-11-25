@@ -34,8 +34,7 @@ import { errorText, useMailActions } from './actions'
 import { ReplyComposer } from './Composer'
 import { LinkEventDialog } from './LinkEventDialog'
 import { MessageBody, splitQuoted } from './MessageBody'
-import { TranslationRail } from './TranslationRail'
-import { detectLanguage, languageName, targetLanguage } from '../lib/translate'
+import { detectLanguage, languageName, LANGUAGES, setTargetLanguage, targetLanguage } from '../lib/translate'
 
 interface ThreadViewProps {
   threadId: string
@@ -240,7 +239,7 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
 
   const linked = events ?? []
   const showCalendar = !embedded && linked.length > 0
-  const showRail = showCalendar || translating
+  const showRail = showCalendar
 
   return (
     <article ref={article} className={`thread ${embedded ? 'thread--embedded' : ''}`} aria-label={thread.subject}>
@@ -282,6 +281,30 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
           <div className="thread__main">
             {!embedded && thread.projectId && <ProjectStrip projectId={thread.projectId} threadId={thread.id} />}
             <div className="thread__messages">
+              {translating && (
+                <div className="translate-bar" role="region" aria-label="Translation">
+                  <TranslateIcon size={16} />
+                  <span>Translated into</span>
+                  <select
+                    value={target}
+                    aria-label="Translate into"
+                    onChange={(event) => {
+                      setTargetLanguage(event.target.value)
+                      setTarget(event.target.value)
+                    }}
+                  >
+                    {[...new Set([target, ...LANGUAGES])].map((code) => (
+                      <option key={code} value={code}>
+                        {languageName(code)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="translate-bar__spacer" />
+                  <button type="button" onClick={() => setTranslating(false)} {...tooltip('Show as written', shortcuts ? 't' : undefined)}>
+                    Turn off
+                  </button>
+                </div>
+              )}
               {replying && <ReplyComposer thread={thread} onDone={() => setReplying(false)} />}
               {messages.map((message, index) => (
                 <MessageItem
@@ -289,6 +312,7 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
                   message={message}
                   self={message.from.email.toLowerCase() === me}
                   open={expanded.has(message.id)}
+                  translateTo={translating ? target : null}
                   divider={index > 0 || replying}
                   onToggle={() =>
                     setExpanded((set) => {
@@ -303,9 +327,8 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
             </div>
           </div>
           {showRail && (
-            <div className={`thread__side ${translating ? 'is-wide' : ''}`}>
-              {showCalendar && <CalendarRail events={linked} onOpen={(event, anchor) => setEditing({ mode: 'edit', event, anchor })} onAdd={eventFromMail} />}
-              {translating && <TranslationRail messages={messages} target={target} onTargetChange={setTarget} onClose={() => setTranslating(false)} />}
+            <div className="thread__side">
+              <CalendarRail events={linked} onOpen={(event, anchor) => setEditing({ mode: 'edit', event, anchor })} onAdd={eventFromMail} />
             </div>
           )}
         </div>
@@ -360,7 +383,21 @@ function CalendarRail({ events, onOpen, onAdd }: { events: CalendarEvent[]; onOp
   )
 }
 
-function MessageItem({ message, self, open, divider, onToggle }: { message: Message; self: boolean; open: boolean; divider: boolean; onToggle: () => void }) {
+function MessageItem({
+  message,
+  self,
+  open,
+  divider,
+  translateTo,
+  onToggle,
+}: {
+  message: Message
+  self: boolean
+  open: boolean
+  divider: boolean
+  translateTo: string | null
+  onToggle: () => void
+}) {
   const date = parseDate(message.date)
   return (
     <section className={`message ${open ? 'is-open' : ''} ${divider ? 'has-divider' : ''}`}>
@@ -376,7 +413,7 @@ function MessageItem({ message, self, open, divider, onToggle }: { message: Mess
       </button>
       {open ? (
         <div className="message__content">
-          <MessageBody text={message.text} html={message.html} />
+          <MessageBody text={message.text} html={message.html} translateTo={translateTo} cacheKey={message.id} />
           {message.attachments.length > 0 && <AttachmentChips attachments={message.attachments} />}
         </div>
       ) : (

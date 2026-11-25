@@ -128,3 +128,30 @@ export async function translateText(translator: ChromeTranslator, text: string, 
   results.set(cacheKey, joined)
   return joined
 }
+
+/** Translates the text of an HTML fragment piece by piece on the device, keeping its markup. */
+export async function translateHtmlOnDevice(translator: ChromeTranslator, html: string, cacheKey: string): Promise<string> {
+  const cached = results.get(cacheKey)
+  if (cached !== undefined) return cached
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+  const nodes: Text[] = []
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const parent = (node as Text).parentElement
+    if (parent && !parent.closest('style, script') && /\p{L}/u.test(node.textContent ?? '')) nodes.push(node as Text)
+  }
+  const seen = new Map<string, Promise<string>>()
+  await Promise.all(
+    nodes.map(async (node) => {
+      const original = node.textContent ?? ''
+      const core = original.trim()
+      if (!seen.has(core)) seen.set(core, translator.translate(core))
+      const translated = await seen.get(core)!
+      // Keep the spaces around the text, which the markup relies on.
+      node.textContent = original.replace(core, translated)
+    }),
+  )
+  const out = doc.body.innerHTML
+  results.set(cacheKey, out)
+  return out
+}

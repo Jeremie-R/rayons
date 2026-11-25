@@ -1,8 +1,10 @@
 import DOMPurify from 'dompurify'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MoreIcon } from '../components/icons'
+import { MoreIcon, TranslateIcon } from '../components/icons'
 import { tooltip } from '../components/ui'
 import { useTheme } from '../lib/theme'
+import { languageName } from '../lib/translate'
+import { useTranslated, type Translated } from './useTranslated'
 
 // Mail HTML is untrusted. It is sanitised, then shown in a sandboxed iframe without scripts.
 // `allow-same-origin` only lets us measure its height; with no `allow-scripts`, nothing in it runs.
@@ -24,9 +26,50 @@ const FRAME_STYLE = `
     blockquote { margin: 0 0 0 0.8ex; padding-left: 1ex; border-left: 1px solid #ccc; }
   </style>`
 
-export function MessageBody({ text, html }: { text: string; html?: string }) {
-  if (html) return <HtmlBody html={html} />
-  return <TextBody text={text} />
+interface BodyProps {
+  text: string
+  html?: string
+  /** Show the message translated into this language (null: as written). */
+  translateTo?: string | null
+  cacheKey?: string
+}
+
+export function MessageBody({ text, html, translateTo = null, cacheKey = '' }: BodyProps) {
+  if (html) return <HtmlBody html={html} text={text} translateTo={translateTo} cacheKey={cacheKey} />
+  return <TextBody text={text} translateTo={translateTo} cacheKey={cacheKey} />
+}
+
+const sanitize = (html: string) =>
+  DOMPurify.sanitize(html, {
+    FORCE_BODY: true,
+    ADD_TAGS: ['style'],
+    ADD_ATTR: ['bgcolor', 'background', 'align', 'valign', 'width', 'height', 'cellpadding', 'cellspacing', 'border'],
+    FORBID_TAGS: ['form', 'input', 'button', 'textarea', 'select', 'meta', 'link', 'base'],
+  })
+
+/** "Translated from Swedish · Show original", or where the translation is at. */
+function TranslationNote({ state, target, original, onToggle }: { state: Translated; target: string; original: boolean; onToggle: () => void }) {
+  if (state.status === 'idle') return null
+  let text: string
+  if (state.status === 'working') {
+    text =
+      state.progress !== undefined && state.progress < 1 && state.from
+        ? `Downloading ${languageName(state.from)} → ${languageName(target)} on this computer (${Math.round(state.progress * 100)}%)…`
+        : 'Translating…'
+  } else if (state.status === 'same') text = `Already in ${languageName(target)}`
+  else if (state.status === 'failed') text = `Couldn’t translate: ${state.reason}`
+  else text = original ? `Original (${languageName(state.from)})` : `Translated from ${languageName(state.from)}`
+  return (
+    <p className={`translation-note ${state.status === 'failed' ? 'is-failed' : ''}`} role="status">
+      <TranslateIcon size={14} />
+      <span>{text}</span>
+      {state.status === 'done' && (
+        <button type="button" onClick={onToggle}>
+          {original ? `Show ${languageName(target)}` : 'Show original'}
+        </button>
+      )}
+    </p>
+  )
 }
 
 // Where mail programs put the quoted history.
@@ -82,24 +125,22 @@ function cutFrom(doc: Document, start: Element): [string, string] {
   return [main, quoted.innerHTML]
 }
 
-function HtmlBody({ html }: { html: string }) {
+function HtmlBody({ html, text, translateTo, cacheKey }: { html: string; text: string; translateTo: string | null; cacheKey: string }) {
   const { resolved } = useTheme()
   const frame = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(120)
   const [showQuoted, setShowQuoted] = useState(false)
+  const [original, setOriginal] = useState(false)
   const [main, quoted] = useMemo(() => {
     // Keep the <style> blocks mail programs put in <head>, then the body.
     const doc = new DOMParser().parseFromString(html, 'text/html')
     const headStyles = [...doc.head.querySelectorAll('style')].map((style) => style.outerHTML).join('')
-    const clean = DOMPurify.sanitize(headStyles + doc.body.innerHTML, {
-      FORCE_BODY: true,
-      ADD_TAGS: ['style'],
-      ADD_ATTR: ['bgcolor', 'background', 'align', 'valign', 'width', 'height', 'cellpadding', 'cellspacing', 'border'],
-      FORBID_TAGS: ['form', 'input', 'button', 'textarea', 'select', 'meta', 'link', 'base'],
-    })
-    return splitQuotedHtml(clean)
+    return splitQuotedHtml(sanitize(headStyles + doc.body.innerHTML))
   }, [html])
-  const body = showQuoted && quoted ? `${main}${quoted}` : main
+  const translation = useTranslated(translateTo ? { format: 'html', content: main, sample: splitQuoted(text)[0] } : null, translateTo, cacheKey)
+  // A translation is HTML that went to a service and back: sanitised again before display.
+  const shownMain = useMemo(() => (translation.status === 'done' && !original ? sanitize(translation.content) : main), [translation, original, main])
+  const body = showQuoted && quoted ? `${shownMain}${quoted}` : shownMain
   // Mail is written for white paper; in dark mode it stays on a light card.
   const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank">${FRAME_STYLE}</head><body class="${resolved === 'dark' ? 'paper' : ''}">${body}</body></html>`
 
@@ -125,6 +166,7 @@ function HtmlBody({ html }: { html: string }) {
 
   return (
     <>
+      {translateTo && <TranslationNote state={translation} target={translateTo} original={original} onToggle={() => setOriginal((v) => !v)} />}
       <iframe
         ref={frame}
         className={`message__frame ${resolved === 'dark' ? 'is-paper' : ''}`}
@@ -150,12 +192,15 @@ function QuotedToggle({ open, onToggle }: { open: boolean; onToggle: () => void 
 
 const URL_PATTERN = /(https?:\/\/[^\s<>"')\]]+)/g
 
-function TextBody({ text }: { text: string }) {
+function TextBody({ text, translateTo, cacheKey }: { text: string; translateTo: string | null; cacheKey: string }) {
   const [main, quoted] = useMemo(() => splitQuoted(text), [text])
   const [showQuoted, setShowQuoted] = useState(false)
+  const [original, setOriginal] = useState(false)
+  const translation = useTranslated(translateTo ? { format: 'text', content: main, sample: main } : null, translateTo, cacheKey)
   return (
     <div className="message__text">
-      <Linkified text={main} />
+      {translateTo && <TranslationNote state={translation} target={translateTo} original={original} onToggle={() => setOriginal((v) => !v)} />}
+      <Linkified text={translation.status === 'done' && !original ? translation.content : main} />
       {quoted && <QuotedToggle open={showQuoted} onToggle={() => setShowQuoted((v) => !v)} />}
       {quoted && showQuoted && (
         <blockquote className="message__quoted">

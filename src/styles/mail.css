@@ -662,3 +662,54 @@
   background: var(--accent-bg);
   color: var(--accent);
 }
+
+/* Translating a conversation in place ------------------------------------------------------ */
+
+.translate-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: var(--text-md);
+}
+
+.translate-bar select {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-sm);
+  background: var(--page);
+  color: var(--ink);
+}
+
+.translate-bar__spacer {
+  flex: 1;
+}
+
+.translate-bar button {
+  font-weight: var(--weight-medium);
+}
+
+.translation-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  white-space: normal;
+}
+
+.translation-note.is-failed {
+  color: var(--danger);
+}
+
+.translation-note button {
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+}

@@ -11,12 +11,12 @@ export interface Translation {
   source: string
 }
 
-const MAX_CHARS = 30_000
+const MAX_CHARS = 60_000
 
 // DeepL wants regional codes for a few targets.
 const DEEPL_TARGET: Record<string, string> = { en: 'EN-GB', pt: 'PT-PT', zh: 'ZH-HANS' }
 
-export async function translate(texts: string[], target: string): Promise<Translation[]> {
+export async function translate(texts: string[], target: string, format: 'text' | 'html' = 'text'): Promise<Translation[]> {
   if (!/^[a-z]{2,3}$/.test(target)) throw new HttpError(400, 'bad_request', 'Unknown language.')
   if (texts.length === 0) return []
   if (texts.length > 50 || texts.reduce((sum, t) => sum + t.length, 0) > MAX_CHARS) {
@@ -35,7 +35,8 @@ export async function translate(texts: string[], target: string): Promise<Transl
       response = await fetch(`${host}/v2/translate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `DeepL-Auth-Key ${deepl}` },
-        body: JSON.stringify({ text: texts, target_lang: DEEPL_TARGET[target] ?? target.toUpperCase() }),
+        // tag_handling html keeps a mail's markup (and so its design) while translating its text.
+        body: JSON.stringify({ text: texts, target_lang: DEEPL_TARGET[target] ?? target.toUpperCase(), ...(format === 'html' ? { tag_handling: 'html' } : {}) }),
         signal: AbortSignal.timeout(20_000),
       }).catch(() => null)
       if (response && response.status !== 403) break
@@ -57,7 +58,7 @@ export async function translate(texts: string[], target: string): Promise<Transl
     const response = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(google)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: texts, target, format: 'text' }),
+      body: JSON.stringify({ q: texts, target, format }),
       signal: AbortSignal.timeout(20_000),
     })
     if (!response.ok) throw new HttpError(502, 'translate_failed', 'The translation service did not answer. Please try again.')
