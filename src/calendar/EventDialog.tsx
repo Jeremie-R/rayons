@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
-import { CloseIcon, FolderIcon, LinkIcon, MailIcon, TrashIcon } from '../components/icons'
+import { ClockIcon, CloseIcon, EditIcon, FolderIcon, LinkIcon, LocationIcon, MailIcon, NotesIcon, TrashIcon } from '../components/icons'
 import { Dialog, useFeedback } from '../components/overlays'
-import { Button, IconButton, TagChip } from '../components/ui'
+import { Button, IconButton, TagChip, tooltip } from '../components/ui'
 import { invalidate, keys, useBackend, useQuery } from '../data/store'
 import { addDays, dateKey, parseDate, toLocalIso } from '../lib/dates'
 import { useIsMobile } from '../lib/hooks'
@@ -98,32 +98,138 @@ function fromForm(form: Form): EventDraft | string {
  * screen still visible and usable. Phone: a bottom sheet.
  */
 export function EventDialog({ editing, onClose, onDirtyChange }: { editing: EventEditing | null; onClose: () => void; onDirtyChange?: (dirty: boolean) => void }) {
-  const mobile = useIsMobile()
   if (!editing) return null
   const key = editing.mode === 'edit' ? editing.event.id : `new:${editing.draft.start}`
-  const title = editing.mode === 'edit' ? 'Event' : 'New event'
+  return <EventPanel key={key} editing={editing} onClose={onClose} onDirtyChange={onDirtyChange} />
+}
+
+/** An existing event opens to read (view); Edit switches to the form. A new one opens in the form. */
+function EventPanel({ editing, onClose, onDirtyChange }: { editing: EventEditing; onClose: () => void; onDirtyChange?: (dirty: boolean) => void }) {
+  const mobile = useIsMobile()
+  const [viewing, setViewing] = useState(editing.mode === 'edit')
+  const title = editing.mode === 'edit' ? (viewing ? 'Event' : 'Edit event') : 'New event'
+  const body = (wide: boolean, setDirty?: (dirty: boolean) => void) =>
+    viewing && editing.mode === 'edit' ? (
+      <EventView event={editing.event} onEdit={() => setViewing(false)} onClose={onClose} />
+    ) : (
+      <EventForm
+        editing={editing}
+        onClose={onClose}
+        wide={wide}
+        onDirtyChange={(dirty) => {
+          setDirty?.(dirty)
+          onDirtyChange?.(dirty)
+        }}
+      />
+    )
   if (mobile) {
     return (
       <Dialog open onClose={onClose} title={title}>
-        <EventForm key={key} editing={editing} onClose={onClose} onDirtyChange={onDirtyChange} />
+        {body(false)}
       </Dialog>
     )
   }
   return (
-    <EventPopover anchor={editing.anchor ?? null} title={title} onClose={onClose}>
-      {(setDirty) => (
-        <EventForm
-          key={key}
-          editing={editing}
-          onClose={onClose}
-          wide
-          onDirtyChange={(dirty) => {
-            setDirty(dirty)
-            onDirtyChange?.(dirty)
-          }}
-        />
-      )}
+    <EventPopover anchor={editing.anchor ?? null} title={title} width={viewing ? 400 : POPOVER_WIDTH} onClose={onClose}>
+      {(setDirty) => body(true, setDirty)}
     </EventPopover>
+  )
+}
+
+const mapsLink = (place: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`
+
+function whenText(event: CalendarEvent) {
+  const start = parseDate(event.start)
+  const end = parseDate(event.end)
+  const day = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' })
+  if (event.allDay) {
+    const last = addDays(end, -1)
+    return last.getTime() > start.getTime() ? `${day(start)} – ${day(last)}` : day(start)
+  }
+  const sameDay = dateKey(start) === dateKey(end)
+  return sameDay ? `${day(start)} · ${timeOf(start)} – ${timeOf(end)}` : `${day(start)} ${timeOf(start)} – ${day(end)} ${timeOf(end)}`
+}
+
+/** Reading an event: what, when, where (opens Google Maps), notes, its tag, project and mail. */
+function EventView({ event, onEdit, onClose }: { event: CalendarEvent; onEdit: () => void; onClose: () => void }) {
+  const backend = useBackend()
+  const notify = useFeedback()
+  const { data: projects } = useQuery(keys.projects, () => backend.listProjects())
+  const { data: thread } = useQuery(event.threadId ? keys.thread(event.threadId) : null, () => backend.getThread(event.threadId!))
+  const project = projects?.find((p) => p.id === event.projectId)
+
+  const remove = async () => {
+    if (!confirm(`Delete "${event.title}"? It will be removed from Google Calendar too.`)) return
+    try {
+      await backend.deleteEvent(event.id)
+      invalidate(keys.events, keys.projects)
+      notify('Event deleted')
+      onClose()
+    } catch (error) {
+      notify(errorText(error), { tone: 'error' })
+    }
+  }
+
+  return (
+    <div
+      className="event-view"
+      onKeyDown={(e) => {
+        if (e.key === 'e' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          e.preventDefault()
+          onEdit()
+        }
+      }}
+    >
+      <h3 className="event-view__title">{event.title || '(no title)'}</h3>
+      <p className="event-view__row">
+        <ClockIcon size={16} />
+        <span>{whenText(event)}</span>
+      </p>
+      {event.location && (
+        <p className="event-view__row">
+          <LocationIcon size={16} />
+          <a href={mapsLink(event.location)} target="_blank" rel="noopener noreferrer" {...tooltip('Open in Google Maps')}>
+            {event.location}
+          </a>
+        </p>
+      )}
+      {event.description && (
+        <p className="event-view__row event-view__notes">
+          <NotesIcon size={16} />
+          <span>{event.description}</span>
+        </p>
+      )}
+      {(event.tag || project || event.threadId) && (
+        <div className="event-view__links">
+          {event.tag && <TagChip tag={event.tag} />}
+          {project && (
+            <Link to={`/projects/${project.id}`} className="event-view__chip" onClick={onClose}>
+              <FolderIcon size={14} />
+              {project.name}
+            </Link>
+          )}
+          {event.threadId && (
+            <Link to={`/inbox/${event.threadId}`} className="event-view__chip" onClick={onClose}>
+              <MailIcon size={14} />
+              {thread?.subject ?? 'Mail'}
+            </Link>
+          )}
+        </div>
+      )}
+      <div className="form__actions">
+        {event.canEdit && <IconButton icon={TrashIcon} label="Delete event" size={16} onClick={remove} />}
+        {event.link && (
+          <a className="button button--ghost button--sm" href={event.link} target="_blank" rel="noopener noreferrer">
+            <LinkIcon size={16} />
+            Google Calendar
+          </a>
+        )}
+        <span className="form__spacer" />
+        <Button variant="accent" icon={EditIcon} shortcut="e" onClick={onEdit}>
+          Edit
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -131,7 +237,7 @@ const POPOVER_WIDTH = 680
 const GAP = 12
 const EDGE = 12
 
-function EventPopover({ anchor, title, onClose, children }: { anchor: DOMRect | null; title: string; onClose: () => void; children: (setDirty: (dirty: boolean) => void) => ReactNode }) {
+function EventPopover({ anchor, title, width: wanted, onClose, children }: { anchor: DOMRect | null; title: string; width: number; onClose: () => void; children: (setDirty: (dirty: boolean) => void) => ReactNode }) {
   const panel = useRef<HTMLDivElement>(null)
   const dirty = useRef(false)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
@@ -140,7 +246,7 @@ function EventPopover({ anchor, title, onClose, children }: { anchor: DOMRect | 
     const place = () => {
       const el = panel.current
       if (!el) return
-      const width = Math.min(POPOVER_WIDTH, window.innerWidth - EDGE * 2)
+      const width = Math.min(wanted, window.innerWidth - EDGE * 2)
       const height = el.offsetHeight
       let left: number
       let top: number
@@ -165,11 +271,11 @@ function EventPopover({ anchor, title, onClose, children }: { anchor: DOMRect | 
       observer.disconnect()
       window.removeEventListener('resize', place)
     }
-  }, [anchor])
+  }, [anchor, wanted])
 
   useEffect(() => {
     // Straight into the title (a new event) or the first field.
-    panel.current?.querySelector<HTMLElement>('.event-form input:not([type="checkbox"]), .event-form button')?.focus({ preventScroll: true })
+    panel.current?.querySelector<HTMLElement>('.event-form input:not([type="checkbox"]), .event-view .button--accent, .event-form button')?.focus({ preventScroll: true })
     // A click elsewhere closes it, unless something was typed (then Cancel or Save).
     const onPointer = (event: PointerEvent) => {
       const target = event.target as Element
@@ -190,7 +296,7 @@ function EventPopover({ anchor, title, onClose, children }: { anchor: DOMRect | 
       role="dialog"
       aria-label={title}
       data-blocks-shortcuts=""
-      style={{ left: position?.left ?? -9999, top: position?.top ?? -9999, width: Math.min(POPOVER_WIDTH, window.innerWidth - EDGE * 2) }}
+      style={{ left: position?.left ?? -9999, top: position?.top ?? -9999, width: Math.min(wanted, window.innerWidth - EDGE * 2) }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.stopPropagation()
@@ -275,7 +381,7 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
     <div className="event-form__main">
       <label className="field">
         <span className="field__label visually-hidden">Title</span>
-        <input className="field__input field__input--title" value={form.title} onChange={(e) => set('title', e.target.value)} readOnly={readOnly} placeholder="Add a title" autoFocus={!original} />
+        <input className="field__input field__input--title" value={form.title} onChange={(e) => set('title', e.target.value)} readOnly={readOnly} placeholder="Add a title" autoFocus />
       </label>
 
       <div className="event-form__when">
