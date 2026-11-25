@@ -254,6 +254,10 @@ export function createDemoBackend(): Backend {
       return placeholder(filename)
     },
 
+    async translate() {
+      throw new Error('In the demo, translation only works in Google Chrome (on the device). Signed in, a translation service covers other browsers.')
+    },
+
     async listCalendars() {
       return [{ id: 'primary', name: DEMO_ACCOUNT.email, color: '#493886', primary: true, canEdit: true }]
     },

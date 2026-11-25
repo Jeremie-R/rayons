@@ -123,6 +123,8 @@ export function createLiveBackend(userId: string, account: Account): Backend {
       return URL.createObjectURL(blob)
     },
 
+    translate: (texts, target) => api<{ text: string; source: string }[]>('translate', { texts, target }),
+
     listCalendars: () => calendar<CalendarInfo[]>({ action: 'listCalendars' }),
     listEvents: (from, to, options) =>
       calendar<CalendarEvent[]>({ action: 'listEvents', timeMin: toLocalIso(parseDate(from)), timeMax: toLocalIso(parseDate(to)), projectId: options?.projectId }),

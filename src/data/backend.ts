@@ -36,6 +36,9 @@ export interface Backend {
   /** Opens or downloads an attachment. */
   attachmentUrl(messageId: string, attachmentId: string, filename: string, mimeType: string): Promise<string>
 
+  /** Translation through a service (when the browser can't translate on the device). */
+  translate(texts: string[], target: string): Promise<{ text: string; source: string }[]>
+
   // Calendar
   listCalendars(): Promise<CalendarInfo[]>
   /** Events overlapping [from, to), ISO dates. */

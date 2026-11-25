@@ -61,6 +61,16 @@ Keep it safe: losing it means signing in to Google again (nothing else is lost).
 
 `bun run dev` now shows "Continue with Google". The `api/` functions run inside the dev server.
 
+### Translation (optional)
+
+In Google Chrome, translation runs on the computer and needs nothing. Other browsers (Arc, Safari, phones) use a service:
+
+1. Create a free [DeepL API](https://www.deepl.com/pro-api) account ("DeepL API Free", 500,000 characters a month; DeepL asks for a card to verify you but doesn't charge the free plan).
+2. Account → **API Keys** → copy the key (it ends in `:fx`).
+3. Add `DEEPL_API_KEY=<key>` to `.env.local` and to Vercel's environment variables, then redeploy.
+
+(Alternatively `GOOGLE_TRANSLATE_API_KEY`, a Google Cloud Translation key; that needs billing enabled on the Google Cloud project.)
+
 ## 5. Deploy (Vercel)
 
 1. Push the repository to GitHub.
