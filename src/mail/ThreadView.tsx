@@ -16,6 +16,7 @@ import {
   PlusIcon,
   ReplyIcon,
   SpamIcon,
+  TranslateIcon,
   TrashIcon,
   UnsubscribeIcon,
 } from '../components/icons'
@@ -33,6 +34,8 @@ import { errorText, useMailActions } from './actions'
 import { ReplyComposer } from './Composer'
 import { LinkEventDialog } from './LinkEventDialog'
 import { MessageBody, splitQuoted } from './MessageBody'
+import { TranslationRail } from './TranslationRail'
+import { detectLanguage, languageName, targetLanguage } from '../lib/translate'
 
 interface ThreadViewProps {
   threadId: string
@@ -67,6 +70,9 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
   const article = useRef<HTMLElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const { data: events } = useQuery(keys.threadEvents(thread.id), () => backend.listThreadEvents(thread.id))
+  const [translating, setTranslating] = useState(false)
+  const [target, setTarget] = useState(targetLanguage)
+  const [detected, setDetected] = useState<string | null>(null)
 
   // Newest first, as in the design. The newest message and any unread ones start open.
   const messages = [...thread.messages].reverse()
@@ -76,6 +82,17 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
     if (thread.unread && markRead) void actions.setRead(thread, true)
     // Only when a thread is opened, not when it changes afterwards.
   }, [thread.id])
+
+  // Notice a foreign-language mail (only if Chrome's detector is already on this computer).
+  useEffect(() => {
+    let cancelled = false
+    const latest = thread.messages[thread.messages.length - 1]
+    if (latest) void detectLanguage(splitQuoted(latest.text)[0]).then((lang) => !cancelled && setDetected(lang)).catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [thread.id])
+  const foreign = detected && detected !== target ? detected : null
 
   const leave = async (task: () => Promise<boolean>) => {
     if (await task()) onGone?.()
@@ -116,6 +133,7 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
   useShortcut('l', () => openMenu('tag'), shortcuts)
   useShortcut('p', () => openMenu('project'), shortcuts)
   useShortcut('v', () => openMenu('calendar'), shortcuts)
+  useShortcut('t', () => setTranslating((on) => !on), shortcuts)
   useShortcut('u', () => onBack?.(), shortcuts && !!onBack)
   useShortcut('Escape', () => onBack?.(), shortcuts && !!onBack)
 
@@ -186,6 +204,9 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
       </MenuItem>
       {compact && (
         <>
+          <MenuItem icon={TranslateIcon} onSelect={() => (close(), setTranslating((on) => !on))}>
+            {translating ? 'Hide translation' : 'Translate'}
+          </MenuItem>
           <MenuItem icon={AddEventIcon} onSelect={() => (close(), eventFromMail())}>
             New event from this mail
           </MenuItem>
@@ -218,7 +239,8 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
   )
 
   const linked = events ?? []
-  const showRail = !embedded && linked.length > 0
+  const showCalendar = !embedded && linked.length > 0
+  const showRail = showCalendar || translating
 
   return (
     <article ref={article} className={`thread ${embedded ? 'thread--embedded' : ''}`} aria-label={thread.subject}>
@@ -229,10 +251,17 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
             {thread.subject}
           </h1>
           {!mobile && tagTrigger}
+          {foreign && !translating && (
+            <button type="button" className="language-hint" onClick={() => setTranslating(true)} {...tooltip(`Translate to ${languageName(target)}`, shortcuts ? 't' : undefined)}>
+              <TranslateIcon size={14} />
+              {languageName(foreign)}
+            </button>
+          )}
         </div>
         <div className="hero__actions" role="toolbar" aria-label="Conversation actions">
           {!embedded && projectButton}
           {!compact && calendarButton}
+          {!compact && <IconButton icon={TranslateIcon} label={translating ? 'Hide translation' : 'Translate'} shortcut="t" size={24} active={translating} onClick={() => setTranslating((on) => !on)} />}
           {!embedded && <IconButton icon={thread.archived ? InboxIcon : ArchiveIcon} label={archiveLabel} shortcut={shortcuts ? 'e' : undefined} size={24} onClick={archive} />}
           {!compact && (
             <>
@@ -273,7 +302,12 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
               ))}
             </div>
           </div>
-          {showRail && <CalendarRail events={linked} onOpen={(event, anchor) => setEditing({ mode: 'edit', event, anchor })} onAdd={eventFromMail} />}
+          {showRail && (
+            <div className={`thread__side ${translating ? 'is-wide' : ''}`}>
+              {showCalendar && <CalendarRail events={linked} onOpen={(event, anchor) => setEditing({ mode: 'edit', event, anchor })} onAdd={eventFromMail} />}
+              {translating && <TranslationRail messages={messages} target={target} onTargetChange={setTarget} onClose={() => setTranslating(false)} />}
+            </div>
+          )}
         </div>
         {!replying && (
           <div className="thread__reply">
@@ -295,9 +329,9 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
 function CalendarRail({ events, onOpen, onAdd }: { events: CalendarEvent[]; onOpen: (event: CalendarEvent, anchor: DOMRect) => void; onAdd: (anchor?: DOMRect) => void }) {
   const now = Date.now()
   return (
-    <aside className="calendar-rail" aria-label="Calendar">
-      <header className="calendar-rail__header">
-        <span className="calendar-rail__title">
+    <aside className="side-card calendar-rail" aria-label="Calendar">
+      <header className="side-card__header">
+        <span className="side-card__title">
           <CalendarIcon size={16} />
           Calendar
         </span>

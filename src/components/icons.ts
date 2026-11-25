@@ -31,6 +31,7 @@ export {
   Send01 as ComposeIcon,
   Settings04 as SettingsIcon,
   Tag01 as TagIcon,
+  Translate01 as TranslateIcon,
   Trash01 as TrashIcon,
   Upload01 as UploadIcon,
   User01 as UserIcon,

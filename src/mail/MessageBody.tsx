@@ -6,20 +6,22 @@ import { useTheme } from '../lib/theme'
 
 // Mail HTML is untrusted. It is sanitised, then shown in a sandboxed iframe without scripts.
 // `allow-same-origin` only lets us measure its height; with no `allow-scripts`, nothing in it runs.
-// Links open in a new tab. Text-only mail is shown as text, with links made clickable.
+// Like Gmail, the mail keeps its own styles (<style> blocks and style="…"): inside the sandbox
+// they can only style the mail itself. Links open in a new tab. Text-only mail is shown as
+// text, with links made clickable.
 //
 // Like Gmail, the quoted history at the end of a reply ("On … wrote:" and what follows) is
 // hidden behind a ••• button.
 
+// Defaults only, close to Gmail's: the mail's own styles come after and win.
 const FRAME_STYLE = `
   <style>
     html { color-scheme: light; }
-    body { margin: 0; font: 16px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2e2e2e; overflow-wrap: anywhere; }
+    body { margin: 0; font: 14px/1.5 Arial, Helvetica, sans-serif; color: #222; overflow-wrap: break-word; }
     body.paper { padding: 16px 20px; }
-    img { max-width: 100%; height: auto; }
-    table { max-width: 100% !important; }
-    a { color: #493886; }
-    blockquote { margin: 0 0 0 0.5em; padding-left: 0.75em; border-left: 2px solid #e4e4e4; color: #6b6b6b; }
+    img { max-width: 100%; }
+    a { color: #1a5fb4; }
+    blockquote { margin: 0 0 0 0.8ex; padding-left: 1ex; border-left: 1px solid #ccc; }
   </style>`
 
 export function MessageBody({ text, html }: { text: string; html?: string }) {
@@ -86,10 +88,14 @@ function HtmlBody({ html }: { html: string }) {
   const [height, setHeight] = useState(120)
   const [showQuoted, setShowQuoted] = useState(false)
   const [main, quoted] = useMemo(() => {
-    const clean = DOMPurify.sanitize(html, {
-      WHOLE_DOCUMENT: false,
-      FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select'],
-      FORBID_ATTR: ['style'],
+    // Keep the <style> blocks mail programs put in <head>, then the body.
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const headStyles = [...doc.head.querySelectorAll('style')].map((style) => style.outerHTML).join('')
+    const clean = DOMPurify.sanitize(headStyles + doc.body.innerHTML, {
+      FORCE_BODY: true,
+      ADD_TAGS: ['style'],
+      ADD_ATTR: ['bgcolor', 'background', 'align', 'valign', 'width', 'height', 'cellpadding', 'cellspacing', 'border'],
+      FORBID_TAGS: ['form', 'input', 'button', 'textarea', 'select', 'meta', 'link', 'base'],
     })
     return splitQuotedHtml(clean)
   }, [html])

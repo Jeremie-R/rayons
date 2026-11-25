@@ -28,7 +28,7 @@ export interface DemoData {
   files: ProjectFile[]
 }
 
-export const DEMO_VERSION = 3
+export const DEMO_VERSION = 5
 
 const person = (name: string, email: string): Person => ({ name, email })
 const solgarden = person('Solgården Homes', 'rentals@solgarden.example')
@@ -46,6 +46,7 @@ const gym = person('Boulder Hall', 'welcome@boulderhall.example')
 const tax = person('Tax Agency', 'no-reply@tax.example')
 const builder = person('Hansson Builders', 'office@hanssonbuild.example')
 const spammer = person('Prize Desk', 'winner@prize-desk.example')
+const vard = person('Vårdcentralen Möllan', 'bokning@vardcentralen.example')
 
 export function createDemoData(now = new Date()): DemoData {
   const at = (daysAgo: number, hour: number, minute = 0) => {
@@ -155,10 +156,33 @@ export function createDemoData(now = new Date()): DemoData {
     thread('t17', 'Congratulations, you won a cruise', null, null, { spam: true }, (id) => [
       msg(id, spammer, at(1, 3, 3), `Claim your prize today by confirming your card details.`),
     ]),
+    thread('t19', 'Påminnelse om din tid', 'admin', null, { unread: true }, (id) => [
+      msg(id, vard, at(0, 7, 15), `Hej Alex,\n\nDetta är en påminnelse om din bokade tid för blodprov på torsdag 3 december 2026 kl. 08.30 hos Vårdcentralen Möllan, Sofielundsvägen 12.\n\nKom gärna tio minuter innan och ta med legitimation. Om du inte kan komma, avboka senast dagen innan via appen eller på telefon.\n\nVänliga hälsningar,\nVårdcentralen Möllan`),
+    ]),
     thread('t18', 'Moving checklist', 'admin', 'p-house', { archived: true }, (id) => [
       msg(id, me, at(12, 19, 0), `Note to self:\n- change address at the post office\n- move the internet subscription\n- book a van for Saturday`),
     ]),
   ]
+
+  // Two HTML mails: a styled newsletter, and a Gmail reply with its quoted history.
+  const html = (threadId: string, index: number, value: string) => {
+    const message = threads.find((t) => t.id === threadId)?.messages[index]
+    if (message) message.html = value
+  }
+  html(
+    't10',
+    0,
+    `<html><head><style>.wrap{max-width:560px;margin:0 auto;font-family:Georgia,serif;color:#333}.top{background:#1f3b2d;color:#f3efe4;padding:28px 24px;border-radius:10px 10px 0 0}.top h1{margin:0;font-size:26px;letter-spacing:.5px}.body{background:#f7f3ea;padding:20px 24px;border-radius:0 0 10px 10px;line-height:1.55}.btn{display:inline-block;background:#d9633b;color:#fff!important;text-decoration:none;padding:10px 18px;border-radius:6px;font-family:Arial,sans-serif}</style></head>
+<body><div class="wrap"><div class="top"><p style="margin:0 0 6px;font:12px Arial;opacity:.8;text-transform:uppercase;letter-spacing:2px">Issue 112</p><h1>Drawing with constraints</h1></div>
+<div class="body"><p>This week: why a narrower palette makes better sketches, three warm-up drills, and a reader's notebook from Gothenburg.</p>
+<table width="100%" cellpadding="8" style="border-collapse:collapse;font-family:Arial;font-size:14px"><tr><td style="border-bottom:1px solid #e2dccd"><b>Drill 1</b> · Ten one-minute thumbnails</td></tr><tr><td style="border-bottom:1px solid #e2dccd"><b>Drill 2</b> · Three values only</td></tr><tr><td><b>Drill 3</b> · Draw with the wrong hand</td></tr></table>
+<p style="text-align:center;margin-top:20px"><a class="btn" href="https://example.com/issue-112">Read the issue</a></p></div></div></body></html>`,
+  )
+  html(
+    't6',
+    1,
+    `<div dir="ltr">Works for me, thanks Maja.</div><br><div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${new Date(at(5, 10, 0)).toDateString()} at 10:00, Maja Ek &lt;maja.ek@designschool.example&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">Hi all, the crit session moves from Wednesday to Thursday 14:00, same room (3.14). Sorry for the shuffle!<br><br>Maja</blockquote></div>`,
+  )
 
   const week = startOfWeek(now)
   const timed = (dayOffset: number, from: [number, number], to: [number, number]) => {
