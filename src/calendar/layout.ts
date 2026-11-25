@@ -1,6 +1,7 @@
 import { addDays, DAY_MS, parseDate, startOfDay } from '../lib/dates'
 import type { CalendarEvent } from '../lib/types'
 
+/** Default height of an hour in the day and week grids, in px. Pinch changes it. */
 export const HOUR_HEIGHT = 50
 
 export function eventRange(event: CalendarEvent) {
@@ -24,7 +25,7 @@ export interface Placed {
 }
 
 /** Timed events of one day, positioned, with overlapping ones side by side. */
-export function layoutDay(events: CalendarEvent[], day: Date): Placed[] {
+export function layoutDay(events: CalendarEvent[], day: Date, hourHeight = HOUR_HEIGHT): Placed[] {
   const dayStart = startOfDay(day).getTime()
   const dayEnd = dayStart + DAY_MS
   const items = events
@@ -44,7 +45,7 @@ export function layoutDay(events: CalendarEvent[], day: Date): Placed[] {
     for (const item of group) {
       const minutes = (item.start - dayStart) / 60_000
       const duration = (item.end - item.start) / 60_000
-      placed.push({ event: item.event, top: (minutes / 60) * HOUR_HEIGHT, height: Math.max(24, (duration / 60) * HOUR_HEIGHT - 2), column: item.column, columns })
+      placed.push({ event: item.event, top: (minutes / 60) * hourHeight, height: Math.max(20, (duration / 60) * hourHeight - 2), column: item.column, columns })
     }
     group = []
   }

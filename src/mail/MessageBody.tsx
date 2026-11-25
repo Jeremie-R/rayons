@@ -58,7 +58,7 @@ function TranslationNote({ state, target, original, onToggle }: { state: Transla
         : 'Translating…'
   } else if (state.status === 'same') text = `Already in ${languageName(target)}`
   else if (state.status === 'failed') text = `Couldn’t translate: ${state.reason}`
-  else text = original ? `Original (${languageName(state.from)})` : `Translated from ${languageName(state.from)}`
+  else text = original ? `Original, in ${languageName(state.from)}` : `Translated into ${languageName(target)}`
   return (
     <p className={`translation-note ${state.status === 'failed' ? 'is-failed' : ''}`} role="status">
       <TranslateIcon size={14} />

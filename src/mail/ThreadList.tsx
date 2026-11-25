@@ -1,6 +1,7 @@
 import { AttachmentIcon, FolderIcon } from '../components/icons'
 import { TagDot } from '../components/ui'
 import { formatListDate } from '../lib/dates'
+import { SwipeRow } from './SwipeRow'
 import type { Project, ThreadSummary } from '../lib/types'
 
 interface ThreadListProps {
@@ -14,9 +15,11 @@ interface ThreadListProps {
   onHover?: (thread: ThreadSummary) => void
   /** Sent mail: show who it went to rather than who wrote last. */
   showRecipients?: boolean
+  /** Swipe left on a row (touch) to archive it. */
+  onSwipe?: (thread: ThreadSummary) => void
 }
 
-export function ThreadList({ threads, selectedId, onOpen, variant = 'full', projects, onHover, showRecipients }: ThreadListProps) {
+export function ThreadList({ threads, selectedId, onOpen, variant = 'full', projects, onHover, showRecipients, onSwipe }: ThreadListProps) {
   let hoverTimer: number | undefined
   const projectName = (id: string | null) => (id ? projects?.find((p) => p.id === id)?.name : undefined)
   return (
@@ -25,6 +28,8 @@ export function ThreadList({ threads, selectedId, onOpen, variant = 'full', proj
         const project = variant === 'full' ? projectName(thread.projectId) : undefined
         return (
           <li key={thread.id}>
+            {(() => {
+              const rowButton = (
             <button
               type="button"
               className={`thread-row ${thread.unread ? 'is-unread' : ''} ${thread.id === selectedId ? 'is-selected' : ''}`}
@@ -66,6 +71,9 @@ export function ThreadList({ threads, selectedId, onOpen, variant = 'full', proj
               )}
               {thread.unread && <span className="visually-hidden">Unread</span>}
             </button>
+              )
+              return onSwipe ? <SwipeRow onSwipe={() => onSwipe(thread)} label={thread.archived ? 'Inbox' : 'Archive'}>{rowButton}</SwipeRow> : rowButton
+            })()}
           </li>
         )
       })}

@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { SignOutIcon } from '../components/icons'
 import { useFeedback } from '../components/overlays'
 import { ShortcutList } from '../components/GlobalShortcuts'
 import { Avatar, Button, Segmented, TagChip } from '../components/ui'
 import { useTheme } from '../lib/theme'
+import { languageName, LANGUAGES, setTargetLanguage, targetLanguage } from '../lib/translate'
 import { TAG_INFO } from '../lib/tags'
 import { TAGS } from '../lib/types'
 
@@ -11,6 +13,7 @@ export function YouScreen() {
   const { state, backend, liveEnabled, signIn, leaveDemo, resetDemoData, signOut, disconnectGoogle } = useAuth()
   const notify = useFeedback()
   const theme = useTheme()
+  const [translateTo, setTranslateTo] = useState(targetLanguage)
   const account = backend?.account
   const demo = state.status === 'demo'
 
@@ -109,6 +112,30 @@ export function YouScreen() {
               ]}
             />
             <span className="muted">{theme.preference === 'system' ? `Following your device (${theme.resolved} now).` : 'Kept on this device.'}</span>
+          </div>
+        </section>
+
+        <section className="panel">
+          <h2 className="panel__title">Translation</h2>
+          <div className="panel__row">
+            <label className="field field--inline">
+              <span className="field__label">Translate mail into</span>
+              <select
+                className="field__input"
+                value={translateTo}
+                onChange={(event) => {
+                  setTargetLanguage(event.target.value)
+                  setTranslateTo(event.target.value)
+                }}
+              >
+                {[...new Set([translateTo, ...LANGUAGES])].map((code) => (
+                  <option key={code} value={code}>
+                    {languageName(code)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="muted">Press <kbd>t</kbd> in a conversation to translate it.</span>
           </div>
         </section>
 

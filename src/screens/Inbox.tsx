@@ -9,6 +9,7 @@ import { useIsMobile } from '../lib/hooks'
 import { useShortcut } from '../lib/shortcuts'
 import { TAGS, type MailBox, type TagId, type ThreadQuery } from '../lib/types'
 import { ComposeDialog } from '../mail/Composer'
+import { useMailActions } from '../mail/actions'
 import { inboxOrder, ThreadList } from '../mail/ThreadList'
 import { ThreadView } from '../mail/ThreadView'
 
@@ -91,6 +92,7 @@ export function InboxScreen() {
   }
 
   const [listWidth, setListWidth] = useListWidth()
+  const actions = useMailActions()
   const searchInput = useRef<HTMLInputElement>(null)
   const load = (id: string) => prefetch(keys.thread(id), () => backend.getThread(id))
 
@@ -190,7 +192,11 @@ export function InboxScreen() {
                 {search ? 'Try other words, or another tag.' : box === 'inbox' && tag !== 'all' ? `No ${tag} mail in your inbox.` : null}
               </EmptyState>
             ) : (
-              <ThreadList threads={threads} selectedId={threadId} onOpen={(t) => openThread(t.id)} projects={projects} onHover={(t) => load(t.id)} showRecipients={box === 'sent'} />
+              <ThreadList threads={threads} selectedId={threadId} onOpen={(t) => openThread(t.id)} projects={projects}
+                onHover={(t) => load(t.id)}
+                showRecipients={box === 'sent'}
+                onSwipe={box === 'spam' ? undefined : (t) => void actions.toggleArchived(t).then((ok) => ok && t.id === threadId && navigate(listUrl))}
+              />
             )}
             <div className="list-pane__footer">
               {box === 'inbox' ? (

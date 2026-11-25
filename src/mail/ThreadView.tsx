@@ -34,7 +34,7 @@ import { errorText, useMailActions } from './actions'
 import { ReplyComposer } from './Composer'
 import { LinkEventDialog } from './LinkEventDialog'
 import { MessageBody, splitQuoted } from './MessageBody'
-import { detectLanguage, languageName, LANGUAGES, setTargetLanguage, targetLanguage } from '../lib/translate'
+import { detectLanguage, languageName, targetLanguage } from '../lib/translate'
 
 interface ThreadViewProps {
   threadId: string
@@ -70,7 +70,8 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
   const scroller = useRef<HTMLDivElement>(null)
   const { data: events } = useQuery(keys.threadEvents(thread.id), () => backend.listThreadEvents(thread.id))
   const [translating, setTranslating] = useState(false)
-  const [target, setTarget] = useState(targetLanguage)
+  // The language set under You (defaults to the browser's).
+  const [target] = useState(targetLanguage)
   const [detected, setDetected] = useState<string | null>(null)
 
   // Newest first, as in the design. The newest message and any unread ones start open.
@@ -281,30 +282,6 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
           <div className="thread__main">
             {!embedded && thread.projectId && <ProjectStrip projectId={thread.projectId} threadId={thread.id} />}
             <div className="thread__messages">
-              {translating && (
-                <div className="translate-bar" role="region" aria-label="Translation">
-                  <TranslateIcon size={16} />
-                  <span>Translated into</span>
-                  <select
-                    value={target}
-                    aria-label="Translate into"
-                    onChange={(event) => {
-                      setTargetLanguage(event.target.value)
-                      setTarget(event.target.value)
-                    }}
-                  >
-                    {[...new Set([target, ...LANGUAGES])].map((code) => (
-                      <option key={code} value={code}>
-                        {languageName(code)}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="translate-bar__spacer" />
-                  <button type="button" onClick={() => setTranslating(false)} {...tooltip('Show as written', shortcuts ? 't' : undefined)}>
-                    Turn off
-                  </button>
-                </div>
-              )}
               {replying && <ReplyComposer thread={thread} onDone={() => setReplying(false)} />}
               {messages.map((message, index) => (
                 <MessageItem

@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { EventDialog, newDraft, type EventEditing } from '../calendar/EventDialog'
 import { MonthGrid, Schedule, TimeGrid, YearGrid } from '../calendar/views'
 import { AddEventIcon, CloseIcon, FilterIcon, NextIcon, PrevIcon, SearchIcon, SettingsIcon } from '../components/icons'
 import { Menu, MenuHeading, MenuItem, MenuSeparator } from '../components/overlays'
 import { ErrorNote, IconButton, Segmented, TagDot } from '../components/ui'
-import { keys, useBackend, useQuery } from '../data/store'
+import { keys, prefetch, useBackend, useQuery } from '../data/store'
 import { addDays, addMonths, dateKey, formatDay, formatMonth, formatMonthYear, parseDate, startOfDay, startOfMonth, startOfWeek } from '../lib/dates'
 import { useIsMobile, useShortcut } from '../lib/hooks'
 import { TAG_INFO } from '../lib/tags'
@@ -21,6 +21,41 @@ function readHidden(): string[] {
     return JSON.parse(localStorage.getItem(HIDDEN_CALENDARS_KEY) ?? '[]')
   } catch {
     return []
+  }
+}
+
+/** The date one period before or after, for the arrows, j/k and swipes. */
+function stepFrom(view: View, cursor: Date, direction: 1 | -1) {
+  if (view === 'day') return addDays(cursor, direction)
+  if (view === 'week') return addDays(cursor, 7 * direction)
+  if (view === 'month') return addMonths(cursor, direction)
+  if (view === 'year') return new Date(cursor.getFullYear() + direction, 0, 1)
+  return addDays(cursor, 30 * direction)
+}
+
+/**
+ * What a view loads and shows. The day view loads its whole week (and a day either side), so
+ * moving a day stays on data already here; on a phone it shows the day before and after too,
+ * for swiping.
+ */
+function rangeFor(view: View, cursor: Date, scheduleDays: number, mobile: boolean): { from: Date; to: Date; days: Date[] } {
+  switch (view) {
+    case 'day': {
+      const week = startOfWeek(cursor)
+      return { from: addDays(week, -1), to: addDays(week, 8), days: mobile ? [addDays(cursor, -1), cursor, addDays(cursor, 1)] : [cursor] }
+    }
+    case 'week': {
+      const from = startOfWeek(cursor)
+      return { from, to: addDays(from, 7), days: Array.from({ length: 7 }, (_, i) => addDays(from, i)) }
+    }
+    case 'month': {
+      const from = startOfWeek(startOfMonth(cursor))
+      return { from, to: addDays(from, 42), days: [] }
+    }
+    case 'year':
+      return { from: new Date(cursor.getFullYear(), 0, 1), to: new Date(cursor.getFullYear() + 1, 0, 1), days: [] }
+    default:
+      return { from: cursor, to: addDays(cursor, scheduleDays), days: [] }
   }
 }
 
@@ -61,28 +96,23 @@ export function CalendarScreen() {
       { replace: true },
     )
 
-  const range = useMemo(() => {
-    switch (view) {
-      case 'day':
-        return { from: cursor, to: addDays(cursor, 1), days: [cursor] }
-      case 'week': {
-        const from = startOfWeek(cursor)
-        return { from, to: addDays(from, 7), days: Array.from({ length: 7 }, (_, i) => addDays(from, i)) }
-      }
-      case 'month': {
-        const from = startOfWeek(startOfMonth(cursor))
-        return { from, to: addDays(from, 42), days: [] }
-      }
-      case 'year':
-        return { from: new Date(cursor.getFullYear(), 0, 1), to: new Date(cursor.getFullYear() + 1, 0, 1), days: [] }
-      default:
-        return { from: cursor, to: addDays(cursor, scheduleDays), days: [] }
-    }
-  }, [view, dateKey(cursor), scheduleDays])
+  const range = useMemo(() => rangeFor(view, cursor, scheduleDays, mobile), [view, dateKey(cursor), scheduleDays, mobile])
 
   const from = dateKey(range.from)
   const to = dateKey(range.to)
   const { data, error, reload } = useQuery(`${keys.events}${from}:${to}`, () => backend.listEvents(from, to))
+
+  // The periods either side load in the background, so moving to them doesn't wait.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      for (const direction of [1, -1] as const) {
+        const next = rangeFor(view, stepFrom(view, cursor, direction), scheduleDays, mobile)
+        const [a, b] = [dateKey(next.from), dateKey(next.to)]
+        prefetch(`${keys.events}${a}:${b}`, () => backend.listEvents(a, b))
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [view, dateKey(cursor), scheduleDays, mobile, backend])
   const { data: calendars } = useQuery(keys.calendars, () => backend.listCalendars())
   const { data: projects } = useQuery(keys.projects, () => backend.listProjects())
 
@@ -96,13 +126,7 @@ export function CalendarScreen() {
     )
   }, [data, hidden, tagFilter, search])
 
-  const step = (direction: 1 | -1) => {
-    if (view === 'day') go({ date: addDays(cursor, direction) })
-    else if (view === 'week') go({ date: addDays(cursor, 7 * direction) })
-    else if (view === 'month') go({ date: addMonths(cursor, direction) })
-    else if (view === 'year') go({ date: new Date(cursor.getFullYear() + direction, 0, 1) })
-    else go({ date: addDays(cursor, 30 * direction) })
-  }
+  const step = (direction: 1 | -1) => go({ date: stepFrom(view, cursor, direction) })
   const today = () => go({ date: startOfDay(new Date()) })
   const openDay = (day: Date) => go({ view: 'day', date: day })
   const create = (at: Date, allDay = false, anchor?: DOMRect) => setEditing({ mode: 'create', draft: newDraft(at, { allDay }), anchor })
@@ -240,7 +264,15 @@ export function CalendarScreen() {
       <div className="calendar__body">
         {!!error && !data && <ErrorNote error={error} onRetry={reload} />}
         {(view === 'week' || view === 'day') && (
-          <TimeGrid days={range.days} events={events} onOpen={open} onCreate={create} ghost={editing?.mode === 'create' ? editing.draft : null} />
+          <TimeGrid
+            key={view}
+            days={range.days}
+            events={events}
+            onOpen={open}
+            onCreate={create}
+            ghost={editing?.mode === 'create' ? editing.draft : null}
+            onStep={mobile && view === 'day' ? step : undefined}
+          />
         )}
         {view === 'month' && <MonthGrid cursor={cursor} events={events} onOpen={open} onCreate={create} onDay={openDay} />}
         {view === 'year' && <YearGrid cursor={cursor} events={events} onDay={openDay} />}

@@ -969,3 +969,8 @@ body.is-resizing iframe {
   gap: 16px;
   flex-wrap: wrap;
 }
+
+.field--inline {
+  flex: 0 0 auto;
+  min-width: 200px;
+}

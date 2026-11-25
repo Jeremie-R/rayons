@@ -713,3 +713,30 @@
   color: var(--accent);
   font-weight: var(--weight-medium);
 }
+
+/* Swipe to archive (touch) */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  --swipe-progress: 0;
+}
+
+.swipe-row__behind {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-right: var(--gutter);
+  background: color-mix(in srgb, var(--tag-knowledge) calc(var(--swipe-progress) * 100%), var(--toggle));
+  color: color-mix(in srgb, var(--ink-inverse) calc(var(--swipe-progress) * 100%), var(--ink-muted));
+  font-weight: var(--weight-medium);
+}
+
+.swipe-row__front {
+  position: relative;
+  background: var(--page);
+  touch-action: pan-y;
+  will-change: transform;
+}

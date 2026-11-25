@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { addDays, dateKey, formatLongDay, formatMonthYear, formatTime, formatWeekday, isSameDay, minutesIntoDay, parseDate, startOfMonth, startOfWeek } from '../lib/dates'
 import type { CalendarEvent, EventDraft, Project } from '../lib/types'
 import { eventRange, eventsOnDay, HOUR_HEIGHT, isBanner, layoutBanners, layoutDay } from './layout'
@@ -23,32 +23,190 @@ function timeRange(event: CalendarEvent) {
 // ---------------------------------------------------------------------------------------------
 // Week and day: a time grid.
 
-export function TimeGrid({ days, events, onOpen, onCreate, ghost }: ViewProps & { days: Date[]; ghost?: EventDraft | null }) {
+const HOUR_KEY = 'rayons:hour-height'
+const MIN_HOUR = 24
+const MAX_HOUR = 140
+const clampHour = (h: number) => Math.max(MIN_HOUR, Math.min(MAX_HOUR, h))
+
+function savedHourHeight() {
+  try {
+    const value = Number(localStorage.getItem(HOUR_KEY))
+    return value ? clampHour(value) : HOUR_HEIGHT
+  } catch {
+    return HOUR_HEIGHT
+  }
+}
+
+/**
+ * Week and day: a time grid.
+ * - Pinch (or ctrl + scroll on a trackpad) to zoom the hours; the height is remembered.
+ * - With `onStep` (the phone's day view) `days` holds the day before, the day and the day
+ *   after, side by side: a sideways drag slides the page with the finger, and letting go
+ *   past a quarter of the width brings in the neighbour, like pushing a sheet of paper.
+ */
+export function TimeGrid({ days, events, onOpen, onCreate, ghost, onStep }: ViewProps & { days: Date[]; ghost?: EventDraft | null; onStep?: (direction: 1 | -1) => void }) {
+  const root = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const now = useNow()
+  const [hourHeight, setHourHeight] = useState(savedHourHeight)
+  const hourRef = useRef(hourHeight)
+  hourRef.current = hourHeight
+  const carousel = !!onStep
   const banners = layoutBanners(events, days)
   const bannerRows = Math.max(1, ...banners.map((b) => b.row + 1))
-  const columns = { '--days': days.length } as CSSProperties
+  const columns = { '--days': days.length, '--hour': `${hourHeight}px` } as CSSProperties
 
-  // Open the day around 7:30, or earlier if something starts before then.
+  // Open the day around 7:30, or earlier if something starts before then (once).
   useLayoutEffect(() => {
-    const earliest = Math.min(7.5 * 60, ...days.flatMap((day) => layoutDay(events, day).map((p) => (p.top / HOUR_HEIGHT) * 60)))
-    scroller.current?.scrollTo({ top: Math.max(0, (earliest / 60) * HOUR_HEIGHT - 24) })
-    // Only when the visible days change, not on every refresh.
-  }, [dateKey(days[0]), days.length])
+    const visible = carousel ? [days[1]] : days
+    const earliest = Math.min(7.5 * 60, ...visible.flatMap((day) => layoutDay(events, day, hourHeight).map((p) => (p.top / hourHeight) * 60)))
+    scroller.current?.scrollTo({ top: Math.max(0, (earliest / 60) * hourHeight - 24) })
+  }, [])
+
+  // Remember the zoom.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(HOUR_KEY, String(Math.round(hourHeight)))
+      } catch {
+        // This visit only.
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [hourHeight])
+
+  /** Zooms keeping the time under `clientY` where it is on screen. */
+  const zoomTo = useCallback((next: number, clientY: number) => {
+    const body = scroller.current
+    if (!body) return
+    const height = clampHour(next)
+    const offset = clientY - body.getBoundingClientRect().top
+    const minutes = ((body.scrollTop + offset) / hourRef.current) * 60
+    hourRef.current = height
+    setHourHeight(height)
+    requestAnimationFrame(() => body.scrollTo({ top: Math.max(0, (minutes / 60) * height - offset) }))
+  }, [])
+
+  // Trackpad pinch arrives as ctrl + wheel.
+  useEffect(() => {
+    const body = scroller.current
+    if (!body) return
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return
+      event.preventDefault()
+      zoomTo(hourRef.current * Math.exp(-event.deltaY * 0.01), event.clientY)
+    }
+    body.addEventListener('wheel', onWheel, { passive: false })
+    return () => body.removeEventListener('wheel', onWheel)
+  }, [zoomTo])
+
+  // Touch: two fingers pinch; one finger sideways swipes (carousel only).
+  const pointers = useRef(new Map<number, { x: number; y: number }>())
+  const pinch = useRef<{ distance: number; height: number } | null>(null)
+  const swipe = useRef<{ x: number; y: number; dx: number; axis: 'x' | 'y' | null } | null>(null)
+  const swallowClick = useRef(false)
+
+  const setSwipe = (dx: number, animate: boolean) => {
+    const el = root.current
+    if (!el) return
+    el.classList.toggle('is-animating', animate)
+    el.style.setProperty('--swipe', `${dx}px`)
+  }
+
+  const onPointerDown = (event: React.PointerEvent) => {
+    if (event.pointerType !== 'touch') return
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()]
+      pinch.current = { distance: Math.hypot(a.x - b.x, a.y - b.y), height: hourRef.current }
+      swipe.current = null
+      setSwipe(0, true)
+    } else if (pointers.current.size === 1 && carousel) {
+      swipe.current = { x: event.clientX, y: event.clientY, dx: 0, axis: null }
+    }
+  }
+
+  const onPointerMove = (event: React.PointerEvent) => {
+    if (!pointers.current.has(event.pointerId)) return
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    if (pinch.current && pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()]
+      const distance = Math.hypot(a.x - b.x, a.y - b.y)
+      zoomTo(pinch.current.height * (distance / pinch.current.distance), (a.y + b.y) / 2)
+      return
+    }
+    const g = swipe.current
+    if (!g) return
+    const dx = event.clientX - g.x
+    const dy = event.clientY - g.y
+    if (!g.axis) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        g.axis = 'x'
+        try {
+          ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+        } catch {
+          // Not capturable (synthetic or already gone): the drag still works.
+        }
+      } else if (Math.abs(dy) > 10) g.axis = 'y'
+    }
+    if (g.axis !== 'x') return
+    g.dx = dx
+    setSwipe(dx, false)
+  }
+
+  const onPointerUp = (event: React.PointerEvent) => {
+    pointers.current.delete(event.pointerId)
+    if (pointers.current.size < 2) pinch.current = null
+    const g = swipe.current
+    if (!g || pointers.current.size > 0) return
+    swipe.current = null
+    if (g.axis !== 'x' || !onStep) return
+    swallowClick.current = true
+    const width = scroller.current?.clientWidth ?? 1
+    const direction = g.dx < -width * 0.25 ? 1 : g.dx > width * 0.25 ? -1 : 0
+    if (!direction) {
+      setSwipe(0, true)
+      return
+    }
+    // Slide the neighbour in, then move the date and reset without animating: same picture.
+    setSwipe(direction === 1 ? -width : width, true)
+    window.setTimeout(() => {
+      setSwipe(0, false)
+      onStep(direction)
+    }, 260)
+  }
 
   const createAt = (day: Date, event: MouseEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return
+    if (swallowClick.current) {
+      swallowClick.current = false
+      return
+    }
     const y = event.nativeEvent.offsetY
-    const minutes = Math.floor(((y / HOUR_HEIGHT) * 60) / 30) * 30
+    const minutes = Math.floor(((y / hourHeight) * 60) / 30) * 30
     const at = new Date(day)
     at.setHours(0, minutes, 0, 0)
     const column = event.currentTarget.getBoundingClientRect()
-    onCreate(at, false, new DOMRect(column.left, column.top + (minutes / 60) * HOUR_HEIGHT, column.width, HOUR_HEIGHT))
+    onCreate(at, false, new DOMRect(column.left, column.top + (minutes / 60) * hourHeight, column.width, hourHeight))
   }
 
   return (
-    <div className="time-grid" style={columns}>
+    <div
+      ref={root}
+      className={`time-grid ${carousel ? 'is-carousel' : ''}`}
+      style={columns}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onClickCapture={(event) => {
+        if (swallowClick.current && !(event.target as Element).classList.contains('day-column')) {
+          swallowClick.current = false
+          event.stopPropagation()
+          event.preventDefault()
+        }
+      }}
+    >
       <div className="time-grid__head">
         <div className="time-grid__corner" />
         {days.map((day) => (
@@ -60,7 +218,7 @@ export function TimeGrid({ days, events, onOpen, onCreate, ghost }: ViewProps & 
         <div className="time-grid__corner time-grid__corner--allday">
           <span className="visually-hidden">All day</span>
         </div>
-        <div className="banners" style={{ gridTemplateRows: `repeat(${bannerRows}, 30px)` }} onDoubleClick={(e) => e.target === e.currentTarget && onCreate(days[0], true, rectOf(e))}>
+        <div className="banners" style={{ gridTemplateRows: `repeat(${bannerRows}, 30px)` }} onDoubleClick={(e) => e.target === e.currentTarget && onCreate(days[carousel ? 1 : 0], true, rectOf(e))}>
           {banners.map((banner) => (
             <button
               key={banner.event.id}
@@ -69,7 +227,8 @@ export function TimeGrid({ days, events, onOpen, onCreate, ghost }: ViewProps & 
               data-tag={tagOf(banner.event)}
               style={{ gridColumn: `${banner.from + 1} / ${banner.to + 2}`, gridRow: banner.row + 1 }}
               onClick={(e) => onOpen(banner.event, rectOf(e))}
-              title={banner.event.title}
+              data-tooltip={banner.event.title}
+              data-tooltip-truncated=""
             >
               {banner.event.title}
             </button>
@@ -78,16 +237,16 @@ export function TimeGrid({ days, events, onOpen, onCreate, ghost }: ViewProps & 
       </div>
 
       <div className="time-grid__body" ref={scroller}>
-        <div className="time-grid__canvas" style={{ height: HOUR_HEIGHT * 24 }}>
+        <div className="time-grid__canvas" style={{ height: hourHeight * 24 }}>
           <div className="time-grid__gutter" aria-hidden="true">
             {HOURS.map((hour) => (
-              <span key={hour} className={`hour-label ${hour % 2 ? 'is-odd' : ''}`} style={{ top: hour * HOUR_HEIGHT }}>
+              <span key={hour} className={`hour-label ${hour % 2 && hourHeight < 70 ? 'is-odd' : ''}`} style={{ top: hour * hourHeight }}>
                 {hour > 0 && `${String(hour).padStart(2, '0')}:00`}
               </span>
             ))}
           </div>
           {days.map((day) => {
-            const placed = layoutDay(events, day)
+            const placed = layoutDay(events, day, hourHeight)
             const today = isSameDay(day, now)
             return (
               <div key={day.toISOString()} className="day-column" onClick={(e) => createAt(day, e)} aria-label={formatLongDay(day)} role="group">
@@ -105,8 +264,8 @@ export function TimeGrid({ days, events, onOpen, onCreate, ghost }: ViewProps & 
                     {height >= 80 && event.location && <span className="event-block__where">{event.location}</span>}
                   </button>
                 ))}
-                {ghost && !ghost.allDay && <GhostBlock draft={ghost} day={day} />}
-                {today && <span className="now-line" style={{ top: (minutesIntoDay(now) / 60) * HOUR_HEIGHT }} aria-hidden="true" />}
+                {ghost && !ghost.allDay && <GhostBlock draft={ghost} day={day} hourHeight={hourHeight} />}
+                {today && <span className="now-line" style={{ top: (minutesIntoDay(now) / 60) * hourHeight }} aria-hidden="true" />}
               </div>
             )
           })}
@@ -263,8 +422,8 @@ export function Schedule({ from, days, events, onOpen, projects, onMore }: Omit<
 }
 
 /** The slot being created, drawn dashed in the grid while the editor is open. */
-function GhostBlock({ draft, day }: { draft: EventDraft; day: Date }) {
-  const placed = layoutDay([{ ...draft, id: 'ghost', calendarId: '', canEdit: true }], day)[0]
+function GhostBlock({ draft, day, hourHeight }: { draft: EventDraft; day: Date; hourHeight: number }) {
+  const placed = layoutDay([{ ...draft, id: 'ghost', calendarId: '', canEdit: true }], day, hourHeight)[0]
   if (!placed) return null
   return (
     <span className="event-block event-block--ghost" style={{ top: placed.top, height: placed.height, left: 4, width: 'calc(100% - 8px)' }} aria-hidden="true">
