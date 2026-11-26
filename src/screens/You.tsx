@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { SignOutIcon } from '../components/icons'
 import { useFeedback } from '../components/overlays'
+import { Select } from '../components/fields'
 import { ShortcutList } from '../components/GlobalShortcuts'
 import { Avatar, Button, Segmented, TagChip } from '../components/ui'
 import { useTheme } from '../lib/theme'
@@ -121,23 +122,19 @@ export function YouScreen() {
         <section className="panel">
           <h2 className="panel__title">Translation</h2>
           <div className="panel__row">
-            <label className="field field--inline">
+            <div className="field field--inline">
               <span className="field__label">Translate mail into</span>
-              <select
-                className="field__input"
+              <Select
+                label="Translate mail into"
+                searchable
                 value={translateTo}
-                onChange={(event) => {
-                  setTargetLanguage(event.target.value)
-                  setTranslateTo(event.target.value)
+                onChange={(code) => {
+                  setTargetLanguage(code)
+                  setTranslateTo(code)
                 }}
-              >
-                {[...new Set([translateTo, ...LANGUAGES])].map((code) => (
-                  <option key={code} value={code}>
-                    {languageName(code)}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={[...new Set([translateTo, ...LANGUAGES])].map((code) => ({ value: code, label: languageName(code), hint: code }))}
+              />
+            </div>
             <span className="muted">Press <kbd>t</kbd> in a conversation to translate it.</span>
           </div>
         </section>

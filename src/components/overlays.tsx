@@ -51,33 +51,73 @@ export function Menu({ trigger, children, label, align = 'end' }: MenuProps) {
   )
 }
 
-function Popover({ anchor, onClose, label, align, children }: { anchor: HTMLElement | null; onClose: () => void; label: string; align: 'start' | 'end'; children: ReactNode }) {
+const ITEMS = '[role="menuitem"], [role="menuitemradio"], [role="option"]'
+
+/**
+ * A panel anchored under a button (above when there is more room there). A bottom sheet on
+ * phones. Used by Menu and by the pickers in fields.tsx.
+ */
+export function Popover({
+  anchor,
+  onClose,
+  label,
+  align = 'start',
+  role = 'menu',
+  className = '',
+  matchWidth = false,
+  initialFocus,
+  children,
+}: {
+  anchor: HTMLElement | null
+  onClose: () => void
+  label: string
+  align?: 'start' | 'end'
+  role?: 'menu' | 'listbox' | 'dialog'
+  className?: string
+  /** At least as wide as the button that opened it. */
+  matchWidth?: boolean
+  /** Where focus goes first (a selector inside the panel). */
+  initialFocus?: string
+  children: ReactNode
+}) {
   const mobile = useIsMobile()
   const panel = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState<{ top: number; left: number; maxHeight: number } | null>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; maxHeight: number; minWidth?: number } | null>(null)
 
   useLayoutEffect(() => {
     if (mobile || !anchor || !panel.current) return
+    // Up or down is decided once, so a list that shrinks while you search stays put.
+    let openUp: boolean | null = null
     const place = () => {
+      if (!panel.current) return
       const rect = anchor.getBoundingClientRect()
-      const width = panel.current!.offsetWidth
-      const height = panel.current!.scrollHeight
+      const minWidth = matchWidth ? rect.width : undefined
+      const width = Math.max(panel.current.offsetWidth, minWidth ?? 0)
+      const height = panel.current.scrollHeight
       const below = window.innerHeight - rect.bottom - 12
       const above = rect.top - 12
-      const openUp = height > below && above > below
+      openUp ??= height > below && above > below
       const maxHeight = Math.max(160, openUp ? above : below)
       const top = openUp ? Math.max(8, rect.top - 6 - Math.min(height, maxHeight)) : rect.bottom + 6
       const left = Math.min(Math.max(8, align === 'end' ? rect.right - width : rect.left), window.innerWidth - width - 8)
-      setPosition({ top, left, maxHeight })
+      setPosition((current) =>
+        current && current.top === top && current.left === left && current.maxHeight === maxHeight && current.minWidth === minWidth ? current : { top, left, maxHeight, minWidth },
+      )
     }
     place()
+    const observer = new ResizeObserver(place)
+    observer.observe(panel.current)
     window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [anchor, mobile, align])
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', place)
+    }
+  }, [anchor, mobile, align, matchWidth])
 
   useEffect(() => {
-    const first = panel.current?.querySelector<HTMLElement>('[role="menuitem"], input, button')
-    first?.focus()
+    const first = (initialFocus && panel.current?.querySelector<HTMLElement>(initialFocus)) || panel.current?.querySelector<HTMLElement>(`${ITEMS}, input, button`)
+    first?.focus({ preventScroll: true })
+    first?.scrollIntoView?.({ block: 'center' })
     const onPointer = (event: PointerEvent) => {
       const target = event.target as Node
       if (!panel.current?.contains(target) && !anchor?.contains(target)) onClose()
@@ -89,11 +129,12 @@ function Popover({ anchor, onClose, label, align, children }: { anchor: HTMLElem
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       event.stopPropagation()
+      event.preventDefault()
       onClose()
       return
     }
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
-    const items = [...(panel.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
+    if (role === 'dialog' || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')) return
+    const items = [...(panel.current?.querySelectorAll<HTMLElement>(ITEMS) ?? [])]
     if (items.length === 0) return
     event.preventDefault()
     const index = items.indexOf(document.activeElement as HTMLElement)
@@ -104,10 +145,10 @@ function Popover({ anchor, onClose, label, align, children }: { anchor: HTMLElem
   const content = (
     <div
       ref={panel}
-      role="menu"
+      role={role}
       aria-label={label}
-      className={`menu ${mobile ? 'menu--sheet' : ''}`}
-      style={mobile ? undefined : { top: position?.top ?? -9999, left: position?.left ?? -9999, maxHeight: position?.maxHeight }}
+      className={`menu ${mobile ? 'menu--sheet' : ''} ${className}`}
+      style={mobile ? undefined : { top: position?.top ?? -9999, left: position?.left ?? -9999, maxHeight: position?.maxHeight, minWidth: position?.minWidth }}
       onKeyDown={onKeyDown}
     >
       {mobile && <p className="menu__title">{label}</p>}
@@ -115,6 +156,8 @@ function Popover({ anchor, onClose, label, align, children }: { anchor: HTMLElem
     </div>
   )
 
+  // Inside a modal dialog, only the dialog can be used: the panel has to live in it.
+  const host = anchor?.closest('dialog[open]') ?? document.body
   return createPortal(
     mobile ? (
       <div className="sheet-scrim" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -123,7 +166,7 @@ function Popover({ anchor, onClose, label, align, children }: { anchor: HTMLElem
     ) : (
       content
     ),
-    document.body,
+    host,
   )
 }
 

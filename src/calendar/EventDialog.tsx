@@ -2,13 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 import { ClockIcon, CloseIcon, EditIcon, FolderIcon, LinkIcon, LocationIcon, MailIcon, NotesIcon, TrashIcon } from '../components/icons'
+import { DateField, Select, TimeField } from '../components/fields'
 import { Dialog, useFeedback } from '../components/overlays'
 import { Button, IconButton, TagChip, tooltip } from '../components/ui'
 import { invalidate, keys, useBackend, useQuery } from '../data/store'
 import { addDays, dateKey, parseDate, toLocalIso } from '../lib/dates'
 import { useIsMobile } from '../lib/hooks'
 import { htmlToText } from '../lib/html'
-import { ART_LABELS, ART_THEMES, artFor, EventArt } from './EventArt'
+import { ART_LABELS, ART_THEMES, ArtFor, artFor, EventArt } from './EventArt'
 import { useShortcut } from '../lib/shortcuts'
 import { TAGS, type CalendarEvent, type EventDraft, type Tag } from '../lib/types'
 import { errorText } from '../mail/actions'
@@ -74,6 +75,16 @@ function toForm(event: EventDraft & { calendarId?: string }): Form {
     calendarId: event.calendarId ?? '',
     art: event.art ?? null,
   }
+}
+
+/** A new start time keeps the event's length (the end moves too, to the next day if needed). */
+function moveStart(form: Form, startTime: string): Form {
+  const start = parseDate(`${form.startDate}T${form.startTime}:00`)
+  const end = parseDate(`${form.endDate}T${form.endTime}:00`)
+  const length = Math.max(end.getTime() - start.getTime(), 15 * 60_000)
+  const nextStart = parseDate(`${form.startDate}T${startTime}:00`)
+  const nextEnd = new Date(nextStart.getTime() + length)
+  return { ...form, startTime, endDate: dateKey(nextEnd), endTime: timeOf(nextEnd) }
 }
 
 function fromForm(form: Form): EventDraft | string {
@@ -393,41 +404,44 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
 
       <div className="event-form__when">
         <div className="field-row">
-          <label className="field">
+          <div className="field">
             <span className="field__label">Starts</span>
-            <input
-              className="field__input"
-              type="date"
+            <DateField
+              label="Start date"
               value={form.startDate}
-              readOnly={readOnly}
-              onChange={(e) => {
-                const startDate = e.target.value
-                if (!startDate) return
+              disabled={readOnly}
+              onChange={(startDate) =>
                 // Keep the same length when the start moves.
                 setForm((f) => {
                   const shift = parseDate(startDate).getTime() - parseDate(f.startDate).getTime()
                   return { ...f, startDate, endDate: dateKey(new Date(parseDate(f.endDate).getTime() + shift)) }
                 })
-              }}
+              }
             />
-          </label>
+          </div>
           {!form.allDay && (
-            <label className="field field--time">
+            <div className="field field--time">
               <span className="field__label visually-hidden">Start time</span>
-              <input className="field__input" type="time" step={300} value={form.startTime} readOnly={readOnly} onChange={(e) => set('startTime', e.target.value)} />
-            </label>
+              <TimeField label="Start time" value={form.startTime} disabled={readOnly} onChange={(startTime) => setForm((f) => moveStart(f, startTime))} />
+            </div>
           )}
         </div>
         <div className="field-row">
-          <label className="field">
+          <div className="field">
             <span className="field__label">Ends</span>
-            <input className="field__input" type="date" value={form.endDate} readOnly={readOnly} onChange={(e) => set('endDate', e.target.value)} />
-          </label>
+            <DateField label="End date" value={form.endDate} min={form.startDate} disabled={readOnly} onChange={(endDate) => set('endDate', endDate)} />
+          </div>
           {!form.allDay && (
-            <label className="field field--time">
+            <div className="field field--time">
               <span className="field__label visually-hidden">End time</span>
-              <input className="field__input" type="time" step={300} value={form.endTime} readOnly={readOnly} onChange={(e) => set('endTime', e.target.value)} />
-            </label>
+              <TimeField
+                label="End time"
+                value={form.endTime}
+                after={form.endDate === form.startDate ? form.startTime : undefined}
+                disabled={readOnly}
+                onChange={(endTime) => set('endTime', endTime)}
+              />
+            </div>
           )}
         </div>
         <label className="checkbox">
@@ -454,15 +468,16 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
       <div className="field">
         <span className="field__label">Picture</span>
         {artFor({ title: form.title, art: form.art }) ? <EventArt event={{ title: form.title, art: form.art }} /> : <div className="event-art event-art--empty" />}
-        <select className="field__input" value={form.art ?? ''} onChange={(e) => set('art', e.target.value || null)} aria-label="Picture">
-          <option value="">{autoArt ? `From the title (${ART_LABELS[autoArt].toLowerCase()})` : 'From the title (none found)'}</option>
-          <option value="none">No picture</option>
-          {ART_THEMES.map((theme) => (
-            <option key={theme} value={theme}>
-              {ART_LABELS[theme]}
-            </option>
-          ))}
-        </select>
+        <Select
+          label="Picture"
+          value={form.art ?? ''}
+          onChange={(art) => set('art', art || null)}
+          options={[
+            { value: '', label: autoArt ? `From the title: ${ART_LABELS[autoArt].toLowerCase()}` : 'From the title (none found)', icon: autoArt ? <ArtFor theme={autoArt} compact /> : undefined },
+            { value: 'none', label: 'No picture' },
+            ...ART_THEMES.map((theme) => ({ value: theme, label: ART_LABELS[theme], icon: <ArtFor theme={theme} compact />, group: 'Choose one' })),
+          ]}
+        />
       </div>
 
       {project && (
@@ -484,18 +499,18 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
         </div>
       </div>
 
-      <label className="field">
+      <div className="field">
         <span className="field__label">Project</span>
-        <select className="field__input" value={form.projectId ?? ''} onChange={(e) => set('projectId', e.target.value || null)}>
-          <option value="">No project</option>
-          {projectOptions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-              {p.status === 'archived' ? ' (archived)' : ''}
-            </option>
-          ))}
-        </select>
-      </label>
+        <Select
+          label="Project"
+          value={form.projectId ?? ''}
+          onChange={(projectId) => set('projectId', projectId || null)}
+          options={[
+            { value: '', label: 'No project' },
+            ...projectOptions.map((p) => ({ value: p.id, label: p.name, hint: p.status === 'archived' ? 'Archived' : undefined, icon: <FolderIcon size={16} /> })),
+          ]}
+        />
+      </div>
 
       {form.threadId && (
         <div className="field">
@@ -511,16 +526,15 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
       )}
 
       {!original && writableCalendars.length > 1 && (
-        <label className="field">
+        <div className="field">
           <span className="field__label">Calendar</span>
-          <select className="field__input" value={form.calendarId || writableCalendars.find((c) => c.primary)?.id || ''} onChange={(e) => set('calendarId', e.target.value)}>
-            {writableCalendars.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Select
+            label="Calendar"
+            value={form.calendarId || writableCalendars.find((c) => c.primary)?.id || ''}
+            onChange={(calendarId) => set('calendarId', calendarId)}
+            options={writableCalendars.map((c) => ({ value: c.id, label: c.name, icon: <span className="calendar-swatch" style={{ background: c.color }} /> }))}
+          />
+        </div>
       )}
 
       {readOnly && <p className="muted note">You were invited to this event, so only its tag, project and mail link can change here.</p>}
