@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { AddToProjectIcon, FilterIcon, ProjectsIcon } from '../components/icons'
 import { Dialog, Menu, MenuHeading, MenuItem, MenuSeparator, useFeedback } from '../components/overlays'
@@ -43,6 +43,19 @@ export function ProjectsScreen() {
     if (next && next.id !== projectId) navigate(`/projects/${next.id}${query}`)
   }
   useShortcut('c', () => setCreating(true))
+  // /projects?new=1 (from the command bar) starts a new project.
+  useEffect(() => {
+    if (params.get('new') !== '1') return
+    setCreating(true)
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete('new')
+        return next
+      },
+      { replace: true },
+    )
+  }, [params])
   useShortcut('j', () => step(1), !threadId)
   useShortcut('k', () => step(-1), !threadId)
   // On a phone, a conversation opened from a project gets the whole screen.

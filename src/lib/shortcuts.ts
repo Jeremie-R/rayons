@@ -73,6 +73,7 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
       ['g c', 'Go to calendar'],
       ['g p', 'Go to projects'],
       ['g s', 'Go to settings'],
+      ['Mod k', 'Command bar'],
       ['?', 'Show shortcuts'],
     ],
   },

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useIsMobile } from '../lib/hooks'
 import { ComposeProvider } from '../mail/Composer'
+import { CommandBar } from './CommandBar'
 import { GlobalShortcuts } from './GlobalShortcuts'
 import { CalendarIcon, InboxIcon, ProjectsIcon, UserIcon } from './icons'
 import { tooltip, type IconComponent } from './ui'
@@ -34,6 +35,7 @@ export function Shell({ banner }: { banner?: ReactNode }) {
         {banner}
         <ComposeProvider>
           <Outlet />
+          <CommandBar />
         </ComposeProvider>
       </div>
       <GlobalShortcuts />

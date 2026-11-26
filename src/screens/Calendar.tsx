@@ -165,6 +165,19 @@ export function CalendarScreen() {
     at.setHours(Math.max(9, new Date().getHours() + 1), 0, 0, 0)
     create(at)
   }
+  // /calendar?new=1 (from the command bar) opens a new event.
+  useEffect(() => {
+    if (params.get('new') !== '1') return
+    createNow()
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete('new')
+        return next
+      },
+      { replace: true },
+    )
+  }, [params])
   const addButton = <IconButton icon={AddEventIcon} label="New event" shortcut="c" variant="round" onClick={createNow} />
   useShortcut('c', createNow)
   const toggleTag = (tag: TagId | 'none') =>
