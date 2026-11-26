@@ -62,7 +62,8 @@ function save() {
   // Lists and the most recently opened conversations, newest last.
   const entries = [...cache.entries()]
   const threads = entries.filter(([key]) => key.startsWith('thread:') && !key.includes(':events')).slice(-MAX_THREADS)
-  const rest = entries.filter(([key]) => !key.startsWith('thread:') && !key.includes(':files'))
+  // Contacts can run into the thousands and load quickly from Supabase: not kept.
+  const rest = entries.filter(([key]) => !key.startsWith('thread:') && !key.includes(':files') && key !== 'contacts')
   for (const set of [[...rest, ...threads], rest]) {
     const text = JSON.stringify(set)
     if (text.length > MAX_BYTES) continue
@@ -197,6 +198,7 @@ export const keys = {
   events: 'events:',
   threadEvents: (id: string) => `events:thread:${id}`,
   calendars: 'calendars',
+  contacts: 'contacts',
   projects: 'projects',
   project: (id: string) => `projects:${id}`,
   projectEvents: (id: string) => `projects:${id}:events`,

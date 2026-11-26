@@ -7,6 +7,7 @@ import { Button, IconButton, TagChip, tooltip } from '../components/ui'
 import { invalidate, keys, useBackend, useQuery } from '../data/store'
 import { addDays, dateKey, parseDate, toLocalIso } from '../lib/dates'
 import { useIsMobile } from '../lib/hooks'
+import { htmlToText } from '../lib/html'
 import { useShortcut } from '../lib/shortcuts'
 import { TAGS, type CalendarEvent, type EventDraft, type Tag } from '../lib/types'
 import { errorText } from '../mail/actions'
@@ -448,7 +449,7 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
           <FolderIcon size={20} />
           <span className="project-card__text">
             <span className="medium">{project.name}</span>
-            {project.notes && <span className="project-card__notes muted">{project.notes}</span>}
+            {project.notes && <span className="project-card__notes muted">{htmlToText(project.notes)}</span>}
           </span>
         </Link>
       )}

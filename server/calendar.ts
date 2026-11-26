@@ -152,6 +152,19 @@ export async function deleteEvent(google: Google, id: string) {
   await google.request(`${CALENDAR}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, { method: 'DELETE' })
 }
 
+/**
+ * A mail joined (or left) a project: the events linked to it follow, unless one was put in
+ * another project on purpose. Returns the projects whose events changed.
+ */
+export async function followThreadProject(google: Google, threadId: string, projectId: string | null, previous: string[]) {
+  const now = Date.now()
+  const year = 365 * 86_400_000
+  const events = await listEvents(google, new Date(now - 2 * year).toISOString(), new Date(now + 2 * year).toISOString(), { threadId })
+  const moving = events.filter((event) => event.projectId !== projectId && (!event.projectId || previous.includes(event.projectId))).slice(0, 25)
+  await inParallel(moving, 3, (event) => updateEvent(google, event.id, { projectId }))
+  return moving.map((event) => event.projectId).filter((id): id is string => !!id)
+}
+
 /** Tags used by a project's events (two years back and ahead). */
 export async function projectEventTags(google: Google, projectId: string) {
   const now = Date.now()

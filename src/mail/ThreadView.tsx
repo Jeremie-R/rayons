@@ -31,7 +31,8 @@ import { useShortcut } from '../lib/shortcuts'
 import { tagLabel } from '../lib/tags'
 import type { Attachment, CalendarEvent, Message, Thread } from '../lib/types'
 import { errorText, useMailActions } from './actions'
-import { ReplyComposer } from './Composer'
+import { replyAllRecipients, ReplyComposer } from './Composer'
+import { participants } from '../lib/contacts'
 import { LinkEventDialog } from './LinkEventDialog'
 import { MessageBody, splitQuoted } from './MessageBody'
 import { detectLanguage, languageName, targetLanguage } from '../lib/translate'
@@ -56,13 +57,16 @@ export function ThreadView({ threadId, onBack, embedded, onGone, markRead = true
   return <LoadedThread key={thread.id} thread={thread} onBack={onBack} embedded={embedded} onGone={onGone} markRead={markRead} />
 }
 
+/** Conversations whose people were remembered during this visit. */
+const remembered = new Set<string>()
+
 const stripPrefixes = (subject: string) => subject.replace(/^((re|fwd?|sv|vs|aw|tr|antw)\s*:\s*)+/i, '').trim()
 
 function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: Thread } & Omit<ThreadViewProps, 'threadId'>) {
   const backend = useBackend()
   const actions = useMailActions()
   const mobile = useIsMobile()
-  const [replying, setReplying] = useState(false)
+  const [replying, setReplying] = useState<false | 'all' | 'sender'>(false)
   const [editing, setEditing] = useState<EventEditing | null>(null)
   const [linking, setLinking] = useState(false)
   const me = backend.account.email.toLowerCase()
@@ -83,6 +87,14 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
     // Only when a thread is opened, not when it changes afterwards.
   }, [thread.id])
 
+  // Remember the people in conversations you open, for suggestions when you write.
+  useEffect(() => {
+    if (!markRead || thread.spam || remembered.has(thread.id)) return
+    remembered.add(thread.id)
+    const people = participants(thread, me)
+    if (people.length) void backend.rememberContacts(people, 'seen').catch((error) => console.warn('Could not remember contacts', error))
+  }, [thread.id])
+
   // Notice a foreign-language mail (only if Chrome's detector is already on this computer).
   useEffect(() => {
     let cancelled = false
@@ -100,8 +112,11 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
   const archive = () => leave(() => actions.toggleArchived(thread))
   const trash = () => leave(() => actions.trash(thread))
   const spam = () => leave(() => actions.toggleSpam(thread))
+  // "Reply all" when the answer would go to more than one person.
+  const audience = replyAllRecipients(thread, me)
+  const replyAll = audience.to.length + audience.cc.length > 1
   const reply = () => {
-    setReplying(true)
+    setReplying(replyAll ? 'all' : 'sender')
     scroller.current?.scrollTo({ top: 0, behavior: 'smooth' })
   }
   const openMenu = (name: string) => article.current?.querySelector<HTMLButtonElement>(`[data-menu="${name}"]`)?.click()
@@ -213,19 +228,19 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
           <MenuItem icon={LinkIcon} onSelect={() => (close(), setLinking(true))}>
             Link an existing event…
           </MenuItem>
-          <MenuSeparator />
-          <MenuItem icon={TrashIcon} onSelect={() => (close(), void trash())}>
-            Move to trash
-          </MenuItem>
-          <MenuItem icon={SpamIcon} onSelect={() => (close(), void spam())}>
-            {thread.spam ? 'Not spam' : 'Report spam'}
-          </MenuItem>
-          {thread.canUnsubscribe && (
-            <MenuItem icon={UnsubscribeIcon} onSelect={() => (close(), void actions.unsubscribe(thread))}>
-              Unsubscribe
-            </MenuItem>
-          )}
         </>
+      )}
+      <MenuSeparator />
+      <MenuItem icon={TrashIcon} onSelect={() => (close(), void trash())} hint={shortcuts ? '#' : undefined}>
+        Move to trash
+      </MenuItem>
+      <MenuItem icon={SpamIcon} onSelect={() => (close(), void spam())} hint={shortcuts ? '!' : undefined}>
+        {thread.spam ? 'Not spam' : 'Report spam'}
+      </MenuItem>
+      {thread.canUnsubscribe && (
+        <MenuItem icon={UnsubscribeIcon} onSelect={() => (close(), void actions.unsubscribe(thread))}>
+          Unsubscribe
+        </MenuItem>
       )}
       {embedded && (
         <>
@@ -263,13 +278,6 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
           {!compact && calendarButton}
           {!compact && <IconButton icon={TranslateIcon} label={translating ? 'Hide translation' : 'Translate'} shortcut="t" size={24} active={translating} onClick={() => setTranslating((on) => !on)} />}
           {!embedded && <IconButton icon={thread.archived ? InboxIcon : ArchiveIcon} label={archiveLabel} shortcut={shortcuts ? 'e' : undefined} size={24} onClick={archive} />}
-          {!compact && (
-            <>
-              <IconButton icon={TrashIcon} label="Move to trash" shortcut="#" size={24} onClick={trash} />
-              <IconButton icon={SpamIcon} label={thread.spam ? 'Not spam' : 'Report spam'} shortcut="!" size={24} onClick={spam} />
-              {thread.canUnsubscribe && <IconButton icon={UnsubscribeIcon} label="Unsubscribe" size={24} onClick={() => actions.unsubscribe(thread)} />}
-            </>
-          )}
           <Menu label="More actions" trigger={(props) => <IconButton {...props} icon={MoreIcon} label="More actions" size={24} />}>
             {secondary}
           </Menu>
@@ -282,7 +290,7 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
           <div className="thread__main">
             {!embedded && thread.projectId && <ProjectStrip projectId={thread.projectId} threadId={thread.id} />}
             <div className="thread__messages">
-              {replying && <ReplyComposer thread={thread} onDone={() => setReplying(false)} />}
+              {replying && <ReplyComposer thread={thread} all={replying === 'all'} onDone={() => setReplying(false)} />}
               {messages.map((message, index) => (
                 <MessageItem
                   key={message.id}
@@ -290,7 +298,7 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
                   self={message.from.email.toLowerCase() === me}
                   open={expanded.has(message.id)}
                   translateTo={translating ? target : null}
-                  divider={index > 0 || replying}
+                  divider={index > 0 || !!replying}
                   onToggle={() =>
                     setExpanded((set) => {
                       const next = new Set(set)
@@ -311,9 +319,9 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
         </div>
         {!replying && (
           <div className="thread__reply">
-            <button type="button" className="pill-button" onClick={reply} {...tooltip('Reply', shortcuts ? 'r' : undefined)}>
+            <button type="button" className="pill-button" onClick={reply} {...tooltip(replyAll ? `Reply to ${audience.to.length + audience.cc.length} people` : 'Reply', shortcuts ? 'r' : undefined)}>
               <ReplyIcon size={24} />
-              Reply
+              {replyAll ? 'Reply all' : 'Reply'}
             </button>
           </div>
         )}

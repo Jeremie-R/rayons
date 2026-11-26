@@ -120,8 +120,12 @@ export const SHORTCUTS: { group: string; items: [string, string][] }[] = [
 ]
 
 /** 'U' → ['⇧', 'U'], 'g i' → ['G', 'I'], '#' → ['#']. For key caps. */
+export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+
 export function keyCaps(keys: string) {
   return keys.split(' ').flatMap((key) => {
+    if (key === 'Mod') return [isMac ? '⌘' : 'Ctrl']
+    if (key === 'Shift') return ['⇧']
     if (key === 'Escape') return ['Esc']
     if (key === 'Enter') return ['↵']
     if (key === 'ArrowLeft') return ['←']

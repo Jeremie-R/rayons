@@ -1,5 +1,6 @@
 import { DAY_MS, parseDate, startOfDay } from '../lib/dates'
-import { TAGS, type CalendarEvent, type Project, type ProjectFile, type TagId, type Thread, type ThreadSummary } from '../lib/types'
+import { isAutomated } from '../lib/contacts'
+import { TAGS, type CalendarEvent, type Contact, type Person, type Project, type ProjectFile, type TagId, type Thread, type ThreadSummary } from '../lib/types'
 import type { Backend } from './backend'
 import { createDemoData, DEMO_ACCOUNT, DEMO_VERSION, type DemoData, type DemoThread } from './demoSeed'
 
@@ -47,6 +48,37 @@ export function resetDemo() {
   } catch {
     // Nothing to clear.
   }
+}
+
+/** What "Import from Google" adds in the demo. */
+const DEMO_GOOGLE_CONTACTS: Person[] = [
+  { name: 'Elin Berg', email: 'elin.berg@example.com' },
+  { name: 'Marco Rossi', email: 'marco@rossi.example' },
+  { name: 'Priya Nair', email: 'priya.nair@example.org' },
+  { name: 'Tomás Ortega', email: 'tomas@ortega.example' },
+  { name: 'Mum', email: 'mum@family.example' },
+]
+
+/** The people in the demo mail, counted the way remembering works when signed in. */
+function contactsFrom(data: DemoData): Contact[] {
+  const byEmail = new Map<string, Contact>()
+  const bump = (person: Person, how: 'seen' | 'sent', date: string) => {
+    const email = person.email.toLowerCase()
+    if (email === DEMO_ACCOUNT.email || (how === 'seen' && isAutomated(email))) return
+    const contact = byEmail.get(email) ?? { email, name: person.name, source: 'mail' as const, sent: 0, seen: 0, lastSeen: date }
+    contact[how] += 1
+    if (!contact.name && person.name) contact.name = person.name
+    if (date > contact.lastSeen) contact.lastSeen = date
+    byEmail.set(email, contact)
+  }
+  for (const thread of data.threads) {
+    if (thread.spam) continue
+    for (const message of thread.messages) {
+      if (message.from.email === DEMO_ACCOUNT.email) [...message.to, ...message.cc].forEach((p) => bump(p, 'sent', message.date))
+      else bump(message.from, 'seen', message.date)
+    }
+  }
+  return [...byEmail.values()]
 }
 
 const placeholder = (name: string) =>
@@ -189,9 +221,14 @@ export function createDemoBackend(): Backend {
 
     async setThreadProject(id, projectId) {
       const thread = findThread(id)
-      touch(thread.projectId)
+      const previous = thread.projectId
+      touch(previous)
       thread.projectId = projectId
       touch(projectId)
+      // Events made from this mail move with it, unless one was put elsewhere on purpose.
+      for (const event of data.events) {
+        if (event.threadId === id && event.projectId !== projectId && (!event.projectId || event.projectId === previous)) event.projectId = projectId
+      }
       return done(undefined)
     },
 
@@ -232,6 +269,7 @@ export function createDemoBackend(): Backend {
         date: new Date().toISOString(),
         snippet: draft.text.slice(0, 140),
         text: draft.text,
+        html: draft.html || undefined,
         attachments: [],
       }
       if (draft.threadId) {
@@ -256,6 +294,45 @@ export function createDemoBackend(): Backend {
 
     async attachmentUrl(_messageId, _attachmentId, filename) {
       return placeholder(filename)
+    },
+
+    async listContacts() {
+      data.contacts ??= contactsFrom(data)
+      return done(data.contacts.map((contact) => ({ ...contact })))
+    },
+
+    async rememberContacts(people, how) {
+      data.contacts ??= contactsFrom(data)
+      const now = new Date().toISOString()
+      for (const person of people) {
+        const email = person.email.toLowerCase()
+        if (email === DEMO_ACCOUNT.email || (how === 'seen' && isAutomated(email))) continue
+        let contact = data.contacts.find((c) => c.email === email)
+        if (!contact) {
+          contact = { email, name: person.name, source: 'mail', sent: 0, seen: 0, lastSeen: now }
+          data.contacts.push(contact)
+        }
+        contact[how] += 1
+        contact.lastSeen = now
+        if (person.name && contact.source === 'mail') contact.name = person.name
+      }
+      return done(undefined)
+    },
+
+    async importContacts() {
+      data.contacts ??= contactsFrom(data)
+      const now = new Date().toISOString()
+      for (const person of DEMO_GOOGLE_CONTACTS) {
+        const existing = data.contacts.find((c) => c.email === person.email)
+        if (existing) Object.assign(existing, { name: person.name, source: 'google' })
+        else data.contacts.push({ ...person, source: 'google', sent: 0, seen: 0, lastSeen: now })
+      }
+      return done({ count: DEMO_GOOGLE_CONTACTS.length })
+    },
+
+    async forgetContact(email) {
+      data.contacts = (data.contacts ?? contactsFrom(data)).filter((contact) => contact.email !== email.toLowerCase())
+      return done(undefined)
     },
 
     async translate() {

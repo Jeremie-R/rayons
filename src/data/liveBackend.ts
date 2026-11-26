@@ -1,6 +1,7 @@
 import { api as callApi, ApiError, reportReconnectNeeded, supabase } from '../auth/cloud'
 import { addDays, parseDate, toLocalIso } from '../lib/dates'
-import type { Account, CalendarEvent, CalendarInfo, Project, ProjectFile, TagId, Thread, ThreadSummary } from '../lib/types'
+import { isAutomated } from '../lib/contacts'
+import type { Account, CalendarEvent, CalendarInfo, Contact, Project, ProjectFile, TagId, Thread, ThreadSummary } from '../lib/types'
 import type { Backend } from './backend'
 import { invalidate, keys } from './store'
 
@@ -49,6 +50,26 @@ const toFile = (row: FileRow): ProjectFile & { storagePath: string } => ({
   source: 'upload',
   createdAt: row.created_at,
   storagePath: row.storage_path,
+})
+
+interface ContactRow {
+  email: string
+  name: string
+  source: 'google' | 'mail'
+  photo_url: string | null
+  sent_count: number
+  seen_count: number
+  last_seen: string
+}
+
+const toContact = (row: ContactRow): Contact => ({
+  email: row.email,
+  name: row.name,
+  source: row.source,
+  photo: row.photo_url,
+  sent: row.sent_count,
+  seen: row.seen_count,
+  lastSeen: row.last_seen,
 })
 
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -121,6 +142,35 @@ export function createLiveBackend(userId: string, account: Account): Backend {
     async attachmentUrl(messageId, attachmentId, _filename, mimeType) {
       const blob = await api<Blob>('gmail', { action: 'attachment', messageId, attachmentId, mimeType }, 'blob')
       return URL.createObjectURL(blob)
+    },
+
+    async listContacts() {
+      // Supabase returns at most 1000 rows at a time.
+      const rows: ContactRow[] = []
+      for (let from = 0; from < 10_000; from += 1000) {
+        const page = unwrap(
+          await db
+            .from('contacts')
+            .select('email, name, source, photo_url, sent_count, seen_count, last_seen')
+            .eq('hidden', false)
+            .order('last_seen', { ascending: false })
+            .range(from, from + 999),
+        ) as ContactRow[]
+        rows.push(...page)
+        if (page.length < 1000) break
+      }
+      return rows.map(toContact)
+    },
+    async rememberContacts(people, how) {
+      const list = people
+        .filter((person) => person.email.toLowerCase() !== account.email.toLowerCase() && (how === 'sent' || !isAutomated(person.email)))
+        .map((person) => ({ name: person.name ?? '', email: person.email.toLowerCase() }))
+      if (!list.length) return
+      unwrap(await db.rpc('remember_contacts', { people: list, sent: how === 'sent' }))
+    },
+    importContacts: () => api<{ count: number }>('contacts', { action: 'import' }),
+    async forgetContact(email) {
+      unwrap(await db.from('contacts').update({ hidden: true }).eq('email', email.toLowerCase()).select('email'))
     },
 
     translate: (texts, target, format = 'text') => api<{ text: string; source: string }[]>('translate', { texts, target, format }),

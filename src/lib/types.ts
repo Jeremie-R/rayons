@@ -144,10 +144,27 @@ export interface ProjectFile {
 export interface Draft {
   to: Person[]
   cc: Person[]
+  bcc?: Person[]
   subject: string
+  /** Plain text, always sent alongside the HTML for mail programs that want it. */
   text: string
+  /** The message as written in the editor. Pasted pictures are data: URLs; they are sent as inline parts. */
+  html?: string
   /** Replying in a thread. */
   threadId?: string
+}
+
+/** Someone you can write to: from Google Contacts, or remembered from mail you read and wrote. */
+export interface Contact {
+  email: string
+  name: string
+  source: 'google' | 'mail'
+  photo?: string | null
+  /** Times you wrote to them, and opened a conversation with them in it. */
+  sent: number
+  seen: number
+  /** ISO date-time. */
+  lastSeen: string
 }
 
 export interface Account {

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useIsMobile } from '../lib/hooks'
+import { ComposeProvider } from '../mail/Composer'
 import { GlobalShortcuts } from './GlobalShortcuts'
 import { CalendarIcon, InboxIcon, ProjectsIcon, UserIcon } from './icons'
 import { tooltip, type IconComponent } from './ui'
@@ -31,7 +32,9 @@ export function Shell({ banner }: { banner?: ReactNode }) {
       )}
       <div className="shell__main">
         {banner}
-        <Outlet />
+        <ComposeProvider>
+          <Outlet />
+        </ComposeProvider>
       </div>
       <GlobalShortcuts />
       {mobile && !detail && (

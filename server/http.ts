@@ -34,11 +34,11 @@ export function handle(request: Request, run: (request: Request) => Promise<Resp
   })
 }
 
-/** Reads a JSON body (POST only, JSON only, at most 2 MB). */
-export async function readJson<T>(request: Request): Promise<T> {
+/** Reads a JSON body (POST only, JSON only, at most 2 MB unless said otherwise). */
+export async function readJson<T>(request: Request, max = 2_000_000): Promise<T> {
   if (!(request.headers.get('content-type') ?? '').includes('application/json')) throw new HttpError(415, 'bad_request', 'Expected JSON.')
   const text = await request.text()
-  if (text.length > 2_000_000) throw new HttpError(413, 'too_large', 'That request is too large.')
+  if (text.length > max) throw new HttpError(413, 'too_large', max > 2_000_000 ? 'That is too large to send. Try smaller or fewer pictures.' : 'That request is too large.')
   try {
     return JSON.parse(text) as T
   } catch {

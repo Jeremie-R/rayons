@@ -16,12 +16,13 @@ Suggested address: `https://rayons.app.roberrini.com` (like Little Stories). Rep
 Rayons gets its own Google Cloud project: a project has one consent screen, and Gmail access shouldn't share one with Little Stories.
 
 1. [console.cloud.google.com](https://console.cloud.google.com) → **New project** → `Rayons`.
-2. **APIs & Services → Library**: enable **Gmail API** and **Google Calendar API**.
+2. **APIs & Services → Library**: enable **Gmail API**, **Google Calendar API** and **People API** (People is only used to import contacts).
 3. **Google Auth Platform → Branding**: app name `Rayons`, your support email, authorised domain `roberrini.com`, a privacy page later if you publish it.
 4. **Data access → Add or remove scopes**, add:
    - `https://www.googleapis.com/auth/gmail.modify`
    - `https://www.googleapis.com/auth/calendar.events`
    - `https://www.googleapis.com/auth/calendar.calendarlist.readonly`
+   - `https://www.googleapis.com/auth/contacts.readonly` and `https://www.googleapis.com/auth/contacts.other.readonly` (asked for only when you press *Import from Google* under You)
 5. **Audience**: External. Then choose:
    - **Testing** (add yourself as a test user): simplest, but Google expires the sign-in every **7 days** for apps in testing, so you'd sign in again weekly.
    - **In production, unverified** (recommended for personal use): no weekly sign-in. Google shows "Google hasn't verified this app" once; click *Advanced → Go to Rayons*. Limited to 100 users, which is fine for you and a few friends.

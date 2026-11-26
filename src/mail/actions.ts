@@ -44,7 +44,8 @@ export function useMailActions() {
       },
       setProject(thread: ThreadSummary, projectId: string | null, project?: Project) {
         return run(
-          () => backend.setThreadProject(thread.id, projectId),
+          // Linked events follow the mail, so calendars refresh too.
+          () => backend.setThreadProject(thread.id, projectId).then(() => invalidate(keys.events)),
           projectId ? `Added to ${project?.name ?? 'project'}` : 'Removed from project',
           () => backend.setThreadProject(thread.id, thread.projectId),
         )

@@ -2,8 +2,10 @@ import type {
   Account,
   CalendarEvent,
   CalendarInfo,
+  Contact,
   Draft,
   EventDraft,
+  Person,
   Project,
   ProjectFile,
   Tag,
@@ -35,6 +37,14 @@ export interface Backend {
   send(draft: Draft): Promise<void>
   /** Opens or downloads an attachment. */
   attachmentUrl(messageId: string, attachmentId: string, filename: string, mimeType: string): Promise<string>
+
+  // Contacts
+  listContacts(): Promise<Contact[]>
+  /** Remembers people from a conversation you opened (`seen`) or wrote to (`sent`). */
+  rememberContacts(people: Person[], how: 'seen' | 'sent'): Promise<void>
+  /** Copies Google Contacts (and "other contacts", the people Gmail suggests) into Rayons. */
+  importContacts(): Promise<{ count: number }>
+  forgetContact(email: string): Promise<void>
 
   /** Translation through a service (when the browser can't translate on the device). */
   translate(texts: string[], target: string, format?: 'text' | 'html'): Promise<{ text: string; source: string }[]>

@@ -2,7 +2,7 @@
 // today so the demo always looks current.
 
 import { addDays, dateKey, startOfWeek, toLocalIso } from '../lib/dates'
-import type { Account, CalendarEvent, Message, Person, Project, ProjectFile, Tag } from '../lib/types'
+import type { Account, CalendarEvent, Contact, Message, Person, Project, ProjectFile, Tag } from '../lib/types'
 
 export const DEMO_ACCOUNT: Account = { name: 'Alex Morgan', email: 'alex@example.com' }
 const me: Person = { name: DEMO_ACCOUNT.name, email: DEMO_ACCOUNT.email }
@@ -26,15 +26,19 @@ export interface DemoData {
   events: CalendarEvent[]
   projects: Omit<Project, 'tags' | 'unreadCount'>[]
   files: ProjectFile[]
+  /** Made from the mail on first use; see demoBackend. */
+  contacts?: Contact[]
 }
 
-export const DEMO_VERSION = 5
+export const DEMO_VERSION = 6
 
 const person = (name: string, email: string): Person => ({ name, email })
 const solgarden = person('Solgården Homes', 'rentals@solgarden.example')
 const nordhem = person('Nordhem Furniture', 'orders@nordhem.example')
 const lindqvist = person('Lindqvist Living', 'delivery@lindqvist.example')
 const maja = person('Maja Ek', 'maja.ek@designschool.example')
+const classmates = [person('Jonas Berg', 'jonas.berg@designschool.example'), person('Aiko Tanaka', 'aiko.tanaka@designschool.example')]
+const courseOffice = person('Course office', 'office@designschool.example')
 const stays = person('Stays', 'no-reply@stays.example')
 const airline = person('Skylark Air', 'checkin@skylark.example')
 const sam = person('Sam Lindgren', 'sam.lindgren@example.com')
@@ -70,6 +74,9 @@ export function createDemoData(now = new Date()): DemoData {
       attachments: attachments.map(([filename, mimeType, size], index) => ({ id: `${id}-a${index}`, messageId: id, filename, mimeType, size })),
     }
   }
+
+  // A mail to the whole class, so "Reply all" has something to show.
+  const toGroup = (message: Message): Message => ({ ...message, to: [me, ...classmates], cc: [courseOffice] })
 
   const thread = (
     id: string,
@@ -113,10 +120,10 @@ export function createDemoData(now = new Date()): DemoData {
       msg(id, lindqvist, at(4, 14, 20), `Hello,\n\nYour sofa and two lamps will be delivered next Tuesday between 10:00 and 12:00. Reply to this email if you need to change the time.\n\nLindqvist Living`, [['Order summary.pdf', 'application/pdf', 61_000]]),
     ]),
     thread('t5', 'Week 6 reading: information architecture', 'knowledge', 'p-ux', { unread: true }, (id) => [
-      msg(id, maja, at(0, 7, 45), `Hi all,\n\nFor Thursday's crit, please read the two chapters attached and bring one example of a navigation you find confusing (an app, a website, a ticket machine…).\n\nWe'll card-sort the examples together.\n\nMaja`, [
+      toGroup(msg(id, maja, at(0, 7, 45), `Hi all,\n\nFor Thursday's crit, please read the two chapters attached and bring one example of a navigation you find confusing (an app, a website, a ticket machine…).\n\nWe'll card-sort the examples together.\n\nMaja`, [
         ['IA reading - chapter 3.pdf', 'application/pdf', 2_100_000],
         ['IA reading - chapter 4.pdf', 'application/pdf', 1_800_000],
-      ]),
+      ])),
     ]),
     thread('t6', 'Crit session moved to Thursday', 'event', 'p-ux', {}, (id) => [
       msg(id, maja, at(5, 10, 0), `Hi all, the crit session moves from Wednesday to Thursday 14:00, same room (3.14). Sorry for the shuffle!\n\nMaja`),

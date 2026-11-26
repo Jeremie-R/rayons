@@ -18,7 +18,7 @@ import { useTranslated, type Translated } from './useTranslated'
 // Defaults only, close to Gmail's: the mail's own styles come after and win.
 const FRAME_STYLE = `
   <style>
-    html { color-scheme: light; }
+    html { color-scheme: light; overflow-y: hidden; }
     body { margin: 0; font: 14px/1.5 Arial, Helvetica, sans-serif; color: #222; overflow-wrap: break-word; }
     body.paper { padding: 16px 20px; }
     img { max-width: 100%; }
@@ -151,7 +151,15 @@ function HtmlBody({ html, text, translateTo, cacheKey }: { html: string; text: s
     const measure = () => {
       const doc = iframe.contentDocument
       if (!doc?.body) return
-      const update = () => setHeight(Math.ceil(doc.documentElement.scrollHeight) + 2)
+      // The document is at least as tall as the frame, so measure with the frame folded to
+      // nothing; otherwise hiding the quoted history again would never shrink it.
+      const update = () => {
+        const kept = iframe.style.height
+        iframe.style.height = '0px'
+        const next = Math.ceil(doc.documentElement.scrollHeight) + 2
+        iframe.style.height = kept
+        setHeight(next)
+      }
       update()
       observer?.disconnect()
       observer = new ResizeObserver(update)

@@ -1,6 +1,7 @@
 import type { Draft, TagId, ThreadQuery } from '../src/lib/types.js'
 import { accountFor, GMAIL, googleClient } from '../server/google.js'
 import { handle, HttpError, json, readJson } from '../server/http.js'
+import * as calendar from '../server/calendar.js'
 import * as mail from '../server/mail.js'
 import { touchProjects } from '../server/projects.js'
 import { requireUser } from '../server/supabase.js'
@@ -23,7 +24,8 @@ const ID = /^[A-Za-z0-9_-]{1,200}$/
 export function POST(request: Request) {
   return handle(request, async () => {
     const user = await requireUser(request)
-    const body = await readJson<Body>(request)
+    // Mail with pasted pictures can be large; Vercel accepts up to 4.5 MB.
+    const body = await readJson<Body>(request, 4_400_000)
     if ('id' in body && !ID.test(body.id)) throw new HttpError(400, 'bad_request', 'Unknown conversation.')
     const google = googleClient(await accountFor(user.id))
     const label = (id: string, add: string[], remove: string[]) => mail.modifyThread(google, id, add, remove)
@@ -38,8 +40,14 @@ export function POST(request: Request) {
         return json({ project: await mail.projectOfThread(google, user.id, body.id) })
       case 'setProject': {
         const changed = await mail.setProject(google, user.id, body.id, body.projectId)
-        await touchProjects([body.projectId])
-        return json({ changed })
+        const previous = changed.filter((id) => id !== body.projectId)
+        // Events made from this mail move with it.
+        const fromEvents = await calendar.followThreadProject(google, body.id, body.projectId, previous).catch((error) => {
+          console.error('Linked events did not follow the mail', error)
+          return [] as string[]
+        })
+        await touchProjects([body.projectId, ...previous])
+        return json({ changed: [...new Set([...changed, ...fromEvents])] })
       }
       case 'setRead':
         await (body.read ? label(body.id, [], ['UNREAD']) : label(body.id, ['UNREAD'], []))

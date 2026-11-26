@@ -127,14 +127,63 @@ create table if not exists public.google_tokens (
 alter table public.google_tokens enable row level security;
 revoke all on public.google_tokens from anon, authenticated;
 
+-- Contacts: people you can write to. Imported from Google Contacts, or remembered from mail
+-- you opened ("seen") and wrote ("sent"), so typing a name in To finds them. Forgetting one
+-- hides it; writing to them again brings it back.
+
+create table if not exists public.contacts (
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  email text not null check (email = lower(email)),
+  name text not null default '',
+  source text not null default 'mail' check (source in ('google', 'mail')),
+  photo_url text,
+  sent_count integer not null default 0,
+  seen_count integer not null default 0,
+  last_seen timestamptz not null default now(),
+  hidden boolean not null default false,
+  primary key (user_id, email)
+);
+
+alter table public.contacts enable row level security;
+
+drop policy if exists "Your own contacts" on public.contacts;
+create policy "Your own contacts" on public.contacts
+  for all to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+-- Adds or counts people in one call. Runs as the caller, so row-level security applies.
+create or replace function public.remember_contacts(people jsonb, sent boolean default false)
+returns void
+language sql
+security invoker
+set search_path = ''
+as $$
+  insert into public.contacts as c (user_id, email, name, sent_count, seen_count, last_seen)
+  select distinct on (lower(p->>'email'))
+    auth.uid(), lower(p->>'email'), coalesce(p->>'name', ''), case when sent then 1 else 0 end, case when sent then 0 else 1 end, now()
+  from jsonb_array_elements(people) as p
+  where lower(p->>'email') ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+  order by lower(p->>'email')
+  on conflict (user_id, email) do update set
+    name = case when excluded.name <> '' and c.source = 'mail' then excluded.name else c.name end,
+    sent_count = c.sent_count + excluded.sent_count,
+    seen_count = c.seen_count + excluded.seen_count,
+    last_seen = now(),
+    hidden = c.hidden and not sent;
+$$;
+
+revoke all on function public.remember_contacts(jsonb, boolean) from public, anon;
+grant execute on function public.remember_contacts(jsonb, boolean) to authenticated;
+
 -- Grants ----------------------------------------------------------------------------------------
 -- Newer Supabase projects don't grant table access automatically. Grant exactly what's needed;
 -- row-level security still limits signed-in people to their own rows.
 
-revoke all on public.projects, public.project_files, public.google_accounts, public.google_tokens from anon, authenticated;
-grant select, insert, update, delete on public.projects, public.project_files to authenticated;
+revoke all on public.projects, public.project_files, public.google_accounts, public.google_tokens, public.contacts from anon, authenticated;
+grant select, insert, update, delete on public.projects, public.project_files, public.contacts to authenticated;
 grant select on public.google_accounts to authenticated;
-grant select, insert, update, delete on public.projects, public.project_files, public.google_accounts, public.google_tokens to service_role;
+grant select, insert, update, delete on public.projects, public.project_files, public.google_accounts, public.google_tokens, public.contacts to service_role;
 
 -- Storage: a private bucket, one folder per person ("<user id>/<project id>/<file>"). --------
 

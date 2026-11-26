@@ -20,6 +20,7 @@ export interface GoogleAccount {
   email: string
   name: string | null
   tag_labels: Record<string, string>
+  scopes: string[] | null
   status: 'ok' | 'reconnect'
 }
 
@@ -130,6 +131,13 @@ export function googleClient(account: GoogleAccount) {
       if (response.status === 429 || isRateLimit(text)) throw new HttpError(429, 'google_busy', 'Google asked Rayons to slow down. Wait a few seconds and try again.')
       if (response.status === 400 && reason === 'failedPrecondition' && url.includes('gmail.googleapis.com')) {
         throw new HttpError(409, 'no_gmail', `This Google account (${account.email}) has no Gmail mailbox. Sign in with your Gmail account instead.`)
+      }
+      if (response.status === 403 && /SERVICE_DISABLED|accessNotConfigured/.test(text)) {
+        const api = url.includes('people.googleapis.com') ? 'People API' : 'API'
+        throw new HttpError(403, 'api_disabled', `The Google ${api} is not turned on for Rayons yet. Turn it on in Google Cloud (APIs & Services), then try again.`)
+      }
+      if (response.status === 403 && /ACCESS_TOKEN_SCOPE_INSUFFICIENT|insufficientPermissions/.test(text)) {
+        throw new HttpError(403, 'needs_scope', 'Rayons needs one more permission from Google for this.')
       }
       if (response.status === 403) throw new HttpError(403, 'google_forbidden', `Google did not allow that${reason ? ` (${reason})` : ''}. You may need to sign in again to grant access.`)
       throw new HttpError(502, 'google_error', `Google did not accept that${reason ? ` (${reason})` : ''}. Please try again.`)

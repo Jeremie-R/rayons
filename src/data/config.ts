@@ -8,6 +8,9 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefin
 export const liveConfig = supabaseUrl && supabaseKey && googleClientId ? { supabaseUrl, supabaseKey, googleClientId } : null
 
 /** What Rayons asks Google for. Must match REQUIRED_SCOPES in server/google.ts. */
+/** Asked for only when you import contacts (Google adds them to what you already allowed). */
+export const CONTACT_SCOPES = ['https://www.googleapis.com/auth/contacts.readonly', 'https://www.googleapis.com/auth/contacts.other.readonly']
+
 export const GOOGLE_SCOPES = [
   'openid',
   'email',

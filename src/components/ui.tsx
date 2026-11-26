@@ -1,5 +1,6 @@
 import { useEffect, useState, type ButtonHTMLAttributes, type ComponentType, type ReactNode, type SVGProps } from 'react'
 import { TAGS, type Person, type Tag, type TagId } from '../lib/types'
+import { pictureFor } from '../lib/avatars'
 import { tagLabel } from '../lib/tags'
 
 export type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
@@ -91,11 +92,16 @@ export function TagDots({ tags }: { tags: TagId[] }) {
   )
 }
 
-export function Avatar({ person, self }: { person: Person; self?: boolean }) {
+/** A photo or company logo when there is one (see lib/avatars), over the first letter. */
+export function Avatar({ person, self, photo }: { person: Person; self?: boolean; photo?: string | null }) {
   const letter = (person.name || person.email).trim().charAt(0).toUpperCase() || '?'
+  const src = photo ?? (self ? null : pictureFor(person.email))
+  const [shown, setShown] = useState<string | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
   return (
-    <span className={`avatar ${self ? 'avatar--self' : ''}`} aria-hidden="true">
+    <span className={`avatar ${self ? 'avatar--self' : ''} ${src && shown === src ? 'has-picture' : ''}`} aria-hidden="true">
       {letter}
+      {src && failed !== src && <img src={src} alt="" className={src.startsWith('/api/logo') ? 'is-logo' : ''} loading="lazy" decoding="async" referrerPolicy="no-referrer" onLoad={() => setShown(src)} onError={() => setFailed(src)} />}
     </span>
   )
 }

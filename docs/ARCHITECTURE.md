@@ -9,6 +9,7 @@
 | Project | Supabase | name, notes, active/archived | 0–many threads, events, files |
 | File | Supabase Storage, or a Gmail attachment | the file | one project |
 | Tag | fixed set | admin, event, buy, knowledge; none = "other" | threads and events |
+| Contact | Supabase | name, address, photo, how often you wrote to / heard from them | suggestions in To, Cc, Bcc |
 
 A project's tags are never set by hand: they roll up from its threads and events.
 
@@ -30,6 +31,10 @@ Why:
 - Private extended properties stay on *your* copy of an event, even one someone else organised.
 
 The cost: every screen asks Google, so lists take a few hundred milliseconds, and there are no notifications yet. When that starts to hurt, the next step is a cache table in Supabase fed by Gmail push notifications (`users.watch` through Pub/Sub) and Calendar sync tokens. The screens wouldn't change; only `liveBackend` would.
+
+When a mail joins or leaves a project, the events linked to it follow (unless one was put in another project on purpose): `followThreadProject` in `server/calendar.ts`.
+
+Writing: the composer and project notes share one editor (TipTap, `src/components/RichEditor.tsx`, loaded on demand). It writes HTML and takes Markdown as you type. Mail goes out as multipart/alternative (text and HTML); pictures pasted into it are made smaller in the browser and sent as inline parts (`cid:`), like Gmail. Contacts come from Google (People API: saved contacts and "other contacts", imported on request) and from mail you open or write (`remember_contacts` in Supabase). Sender pictures: a contact's photo, else the domain's BIMI logo or site icon from `api/logo` (public, cached a week), else the first letter.
 
 An event can belong with a mail without any project (an invitation, a booking): it carries the thread id, and the conversation shows those events in a small calendar rail. "New event from this mail" takes its title from the subject and its date from the first date written in the mail, when there is one (`src/lib/guessDate.ts`).
 

@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import connectorDot from '../assets/event-connector.svg'
 import { EventDialog, newDraft, type EventEditing } from '../calendar/EventDialog'
 import { AddEventIcon, ArchiveIcon, AttachmentIcon, BackIcon, CloseIcon, EditIcon, InboxIcon, MailIcon, MoreIcon, PlusIcon, TrashIcon } from '../components/icons'
 import { Menu, MenuItem, MenuSeparator, useFeedback } from '../components/overlays'
+import { Editor } from '../components/Editor'
 import { Button, EmptyState, ErrorNote, IconButton, Loading, TagChip, TagDot } from '../components/ui'
 import { invalidate, keys, useBackend, useQuery } from '../data/store'
 import { formatBytes, formatDay, formatTime, parseDate } from '../lib/dates'
 import { useAutosave, useIsMobile } from '../lib/hooks'
+import { asEditorHtml } from '../lib/html'
 import type { CalendarEvent, Project, ProjectFile } from '../lib/types'
 import { errorText } from '../mail/actions'
 import { ThreadList } from '../mail/ThreadList'
@@ -294,6 +296,8 @@ function FilesSection({ project }: { project: Project }) {
 
 function NotesSection({ project }: { project: Project }) {
   const backend = useBackend()
+  // Notes are HTML since the editor; older plain-text notes open as paragraphs.
+  const [initial] = useState(() => asEditorHtml(project.notes))
   const [notes, setNotes] = useState(project.notes)
   const state = useAutosave(notes, async (value) => {
     await backend.updateProject(project.id, { notes: value })
@@ -301,13 +305,13 @@ function NotesSection({ project }: { project: Project }) {
   })
   return (
     <Section title="Notes">
-      <textarea
-        className="notes"
-        value={notes}
+      <Editor
+        key={project.id}
+        content={initial}
+        label="Notes"
         placeholder="Anything worth remembering about this project…"
-        aria-label="Notes"
-        onChange={(e) => setNotes(e.target.value)}
-        style={{ fieldSizing: 'content' } as CSSProperties}
+        className="notes"
+        onChange={(value) => setNotes(value.html)}
       />
       <p className="save-state muted" aria-live="polite">
         {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : state === 'error' ? 'Not saved. Check your connection.' : ' '}

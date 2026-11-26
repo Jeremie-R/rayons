@@ -8,7 +8,7 @@ import { keys, prefetch, useBackend, useQuery } from '../data/store'
 import { useIsMobile } from '../lib/hooks'
 import { useShortcut } from '../lib/shortcuts'
 import { TAGS, type MailBox, type TagId, type ThreadQuery } from '../lib/types'
-import { ComposeDialog } from '../mail/Composer'
+import { useCompose } from '../mail/Composer'
 import { useMailActions } from '../mail/actions'
 import { inboxOrder, ThreadList } from '../mail/ThreadList'
 import { ThreadView } from '../mail/ThreadView'
@@ -28,7 +28,7 @@ export function InboxScreen() {
   const mobile = useIsMobile()
   const { threadId } = useParams()
   const [params, setParams] = useSearchParams()
-  const [composing, setComposing] = useState(false)
+  const compose = useCompose()
 
   const box = (['archived', 'spam', 'sent'].includes(params.get('box') ?? '') ? params.get('box') : 'inbox') as MailBox
   const tag = (TAGS as readonly string[]).includes(params.get('tag') ?? '') ? (params.get('tag') as TagId) : 'all'
@@ -103,7 +103,7 @@ export function InboxScreen() {
     const next = threads[index < 0 ? 0 : Math.max(0, Math.min(threads.length - 1, index + direction))]
     if (next && next.id !== threadId) openThread(next.id)
   }
-  useShortcut('c', () => setComposing(true))
+  useShortcut('c', () => compose.open())
   useShortcut('j', () => step(1))
   useShortcut('k', () => step(-1))
   useShortcut('/', () => searchInput.current?.focus())
@@ -126,7 +126,7 @@ export function InboxScreen() {
           <header className="list-pane__header">
             <div className="list-pane__title">
               <h1>{TITLES[box]}</h1>
-              <IconButton icon={ComposeIcon} label="New message" shortcut="c" variant="round" onClick={() => setComposing(true)} />
+              <IconButton icon={ComposeIcon} label="New message" shortcut="c" variant="round" onClick={() => compose.open()} />
             </div>
             <div className="search">
               <SearchIcon size={16} />
@@ -227,7 +227,6 @@ export function InboxScreen() {
         </section>
       )}
 
-      <ComposeDialog open={composing} onClose={() => setComposing(false)} />
     </div>
   )
 }

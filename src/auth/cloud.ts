@@ -1,5 +1,6 @@
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js'
 import { GOOGLE_SCOPES, liveConfig } from '../data/config'
+import { setSignInFollowUp } from './followUp'
 
 // Signing in: the browser goes to Google (authorization code + PKCE), Google sends it back to
 // /auth/callback with a one-time code, and api/google/connect trades the code for tokens on the
@@ -28,17 +29,30 @@ async function challengeFor(verifier: string) {
   return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-/** Sends the browser to Google. `consent` asks again for every permission (gives a new refresh token). */
-export async function startGoogleSignIn(options: { consent?: boolean; hint?: string } = {}) {
+interface SavedSignIn {
+  state: string
+  verifier: string
+  back: string
+  scopes?: string[]
+  then?: string
+}
+
+/**
+ * Sends the browser to Google. `consent` asks again for every permission (gives a new refresh
+ * token); `scopes` asks for more than the usual ones; `then` is kept for the page to act on
+ * when it comes back (see `takeSignInFollowUp`).
+ */
+export async function startGoogleSignIn(options: { consent?: boolean; hint?: string; scopes?: string[]; then?: string } = {}) {
   if (!liveConfig) throw new Error('Google sign-in is not configured.')
   const state = randomString(16)
   const verifier = randomString(48)
-  sessionStorage.setItem(STATE_KEY, JSON.stringify({ state, verifier, back: location.pathname + location.search }))
+  const saved: SavedSignIn = { state, verifier, back: location.pathname + location.search, scopes: options.scopes, then: options.then }
+  sessionStorage.setItem(STATE_KEY, JSON.stringify(saved))
   const params = new URLSearchParams({
     client_id: liveConfig.googleClientId,
     redirect_uri: location.origin + CALLBACK_PATH,
     response_type: 'code',
-    scope: GOOGLE_SCOPES.join(' '),
+    scope: [...GOOGLE_SCOPES, ...(options.scopes ?? [])].join(' '),
     access_type: 'offline',
     include_granted_scopes: 'true',
     state,
@@ -59,7 +73,7 @@ export class SignInError extends Error {}
 export async function finishGoogleSignIn(): Promise<string | null> {
   if (location.pathname !== CALLBACK_PATH) return null
   const params = new URLSearchParams(location.search)
-  const saved = JSON.parse(sessionStorage.getItem(STATE_KEY) ?? 'null') as { state: string; verifier: string; back: string } | null
+  const saved = JSON.parse(sessionStorage.getItem(STATE_KEY) ?? 'null') as SavedSignIn | null
   sessionStorage.removeItem(STATE_KEY)
   history.replaceState(null, '', '/')
   if (params.get('error')) throw new SignInError(params.get('error') === 'access_denied' ? 'Sign-in was cancelled.' : 'Google did not complete the sign-in.')
@@ -75,12 +89,14 @@ export async function finishGoogleSignIn(): Promise<string | null> {
   const body = (await response.json().catch(() => ({}))) as { session?: Session | null; needsConsent?: boolean; message?: string }
   if (!response.ok) throw new SignInError(body.message ?? 'Could not finish signing in.')
   if (body.needsConsent) {
-    await startGoogleSignIn({ consent: true })
+    await startGoogleSignIn({ consent: true, scopes: saved.scopes, then: saved.then })
     return new Promise(() => {}) // Leaving for Google.
   }
   if (body.session) await supabase().auth.setSession(body.session)
+  if (saved.then) setSignInFollowUp(saved.then)
   return saved.back && saved.back !== CALLBACK_PATH ? saved.back : '/'
 }
+
 
 /** Calls one of our api/ functions as the signed-in person. */
 export async function api<T>(path: string, body: unknown, as: 'json' | 'blob' = 'json'): Promise<T> {

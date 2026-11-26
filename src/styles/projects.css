@@ -257,23 +257,22 @@
 /* Notes */
 
 .notes {
-  width: 100%;
-  min-height: 104px;
-  border: 0;
-  padding: 8px 12px;
   margin: -8px -12px;
   width: calc(100% + 24px);
+  padding: 8px 12px;
   border-radius: var(--radius);
-  resize: none;
-  line-height: var(--leading);
-  transition: background-color 0.15s;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+.notes .rich {
+  min-height: 88px;
 }
 
 .notes:hover {
   background: var(--hover);
 }
 
-.notes:focus-visible {
+.notes:focus-within {
   background: var(--page);
   box-shadow: inset 0 0 0 1px var(--accent-line), 0 0 0 3px var(--accent-bg);
 }
@@ -348,5 +347,96 @@
   .mail-box__list {
     flex: 1;
     border-right: 0;
+  }
+}
+
+/* Contacts (under You) */
+
+.contacts-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+}
+
+.contacts-search:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.contacts-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+.contacts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.contact:last-child {
+  border-bottom: 0;
+}
+
+.contact .avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+}
+
+.contact__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.contact__name,
+.contact__email {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.contact__email,
+.contact__source {
+  font-size: var(--text-sm);
+}
+
+.contact__source {
+  flex: none;
+}
+
+.contact .icon-button {
+  opacity: 0;
+}
+
+.contact:hover .icon-button,
+.contact .icon-button:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .contact .icon-button {
+    opacity: 1;
   }
 }

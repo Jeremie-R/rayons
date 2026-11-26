@@ -8,6 +8,7 @@ import { useTheme } from '../lib/theme'
 import { languageName, LANGUAGES, setTargetLanguage, targetLanguage } from '../lib/translate'
 import { TAG_INFO } from '../lib/tags'
 import { TAGS } from '../lib/types'
+import { ContactsPanel } from './ContactsPanel'
 
 export function YouScreen() {
   const { state, backend, liveEnabled, signIn, leaveDemo, resetDemoData, signOut, disconnectGoogle } = useAuth()
@@ -27,7 +28,7 @@ export function YouScreen() {
           <h2 className="panel__title">Account</h2>
           {account && (
             <div className="account">
-              <Avatar person={account} self />
+              <Avatar person={account} self photo={account.picture} />
               <div>
                 <p className="medium">{account.name}</p>
                 <p className="muted">{account.email}</p>
@@ -80,6 +81,8 @@ export function YouScreen() {
             </div>
           )}
         </section>
+
+        <ContactsPanel />
 
         <section className="panel">
           <h2 className="panel__title">Tags</h2>

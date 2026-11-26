@@ -22,7 +22,8 @@ interface AuthValue {
   signInError: string | null
   /** Google refused the stored token: the person needs to sign in again. */
   reconnectNeeded: boolean
-  signIn: (options?: { consent?: boolean }) => Promise<void>
+  /** `scopes` asks Google for more access; `then` is done when it comes back (see followUp.ts). */
+  signIn: (options?: { consent?: boolean; scopes?: string[]; then?: string }) => Promise<void>
   startDemo: () => void
   leaveDemo: () => void
   resetDemoData: () => void
@@ -121,12 +122,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userId, account?.email])
 
   const signIn = useCallback(
-    async (options: { consent?: boolean } = {}) => {
+    async (options: { consent?: boolean; scopes?: string[]; then?: string } = {}) => {
       setSignInError(null)
       const mod = cloud ?? (await import('./cloud'))
-      await mod.startGoogleSignIn({ consent: options.consent, hint: state.status === 'needsGoogle' ? state.email : undefined })
+      await mod.startGoogleSignIn({
+        consent: options.consent,
+        scopes: options.scopes,
+        then: options.then,
+        hint: state.status === 'needsGoogle' ? state.email : account?.email,
+      })
     },
-    [cloud, state],
+    [cloud, state, account?.email],
   )
 
   const startDemo = useCallback(() => {

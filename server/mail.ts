@@ -1,8 +1,8 @@
-import { lookup } from 'node:dns/promises'
-import { isIP } from 'node:net'
+import { randomUUID } from 'node:crypto'
 import type { Attachment, Draft, Message, Person, ProjectFile, TagId, Thread, ThreadQuery, ThreadSummary } from '../src/lib/types.js'
 import { GMAIL, inParallel, type Google } from './google.js'
 import { HttpError } from './http.js'
+import { isPublicHttps } from './net.js'
 import { timed } from './timing.js'
 import { adminClient } from './supabase.js'
 
@@ -420,19 +420,76 @@ export async function attachment(google: Google, messageId: string, attachmentId
 const encodeWord = (text: string) => (/^[\x20-\x7e]*$/.test(text) ? text : `=?UTF-8?B?${Buffer.from(text, 'utf8').toString('base64')}?=`)
 const address = (p: Person) => {
   if (!/^[^\s@<>,"]+@[^\s@<>,"]+$/.test(p.email)) throw new HttpError(400, 'bad_address', `"${p.email}" is not an email address.`)
-  return p.name ? `${encodeWord(p.name.replace(/"/g, ''))} <${p.email}>` : p.email
+  const name = p.name?.replace(/["\\\r\n]/g, '').trim()
+  if (!name) return p.email
+  // "Doe, Jane" needs quotes; names outside ASCII are encoded instead.
+  return /^[\x20-\x7e]*$/.test(name) ? `"${name}" <${p.email}>` : `${encodeWord(name)} <${p.email}>`
+}
+
+const base64Lines = (data: string) => data.replace(/.{76}/g, '$&\r\n')
+const textBase64 = (text: string) => base64Lines(Buffer.from(text, 'utf8').toString('base64'))
+const boundary = (kind: string) => `rayons_${kind}_${randomUUID().replace(/-/g, '')}`
+
+/**
+ * The message as MIME: text and HTML side by side (multipart/alternative), and pictures that
+ * were pasted into the editor sent along as inline parts (multipart/related), like Gmail does.
+ */
+function mimeBody(text: string, html?: string): { headers: string[]; body: string } {
+  const textPart = ['Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', textBase64(text)].join('\r\n')
+  if (!html) return { headers: ['Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64'], body: textBase64(text) }
+
+  const images: { cid: string; type: string; data: string }[] = []
+  const withCids = html.replace(/src="data:(image\/(?:png|jpe?g|gif|webp));base64,([A-Za-z0-9+/=\s]+)"/gi, (_match, type: string, data: string) => {
+    const cid = `image${images.length + 1}.${randomUUID()}@rayons`
+    images.push({ cid, type: type.toLowerCase(), data: data.replace(/\s+/g, '') })
+    return `src="cid:${cid}"`
+  })
+  const document =
+    '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
+    `<div dir="ltr" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${withCids.replace(/<img /g, '<img style="max-width:100%;height:auto" ')}</div>` +
+    '</body></html>'
+  const htmlPart = ['Content-Type: text/html; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', textBase64(document)].join('\r\n')
+
+  let rich = htmlPart
+  if (images.length) {
+    const related = boundary('related')
+    rich = [
+      `Content-Type: multipart/related; boundary="${related}"`,
+      '',
+      `--${related}`,
+      htmlPart,
+      ...images.map((image, index) =>
+        [
+          `--${related}`,
+          `Content-Type: ${image.type}`,
+          'Content-Transfer-Encoding: base64',
+          `Content-ID: <${image.cid}>`,
+          `Content-Disposition: inline; filename="image${index + 1}.${image.type.split('/')[1].replace('jpeg', 'jpg')}"`,
+          '',
+          base64Lines(image.data),
+        ].join('\r\n'),
+      ),
+      `--${related}--`,
+    ].join('\r\n')
+  }
+  const alternative = boundary('alt')
+  return {
+    headers: [`Content-Type: multipart/alternative; boundary="${alternative}"`],
+    body: [`--${alternative}`, textPart, `--${alternative}`, rich, `--${alternative}--`, ''].join('\r\n'),
+  }
 }
 
 export async function send(google: Google, draft: Draft) {
-  if (!draft.to.length) throw new HttpError(400, 'bad_address', 'Add at least one recipient.')
+  const bcc = draft.bcc ?? []
+  if (!draft.to.length && !draft.cc.length && !bcc.length) throw new HttpError(400, 'bad_address', 'Add at least one recipient.')
   const headers = [
     `From: ${address({ name: google.account.name ?? '', email: google.account.email })}`,
-    `To: ${draft.to.map(address).join(', ')}`,
+    ...(draft.to.length ? [`To: ${draft.to.map(address).join(', ')}`] : []),
     ...(draft.cc.length ? [`Cc: ${draft.cc.map(address).join(', ')}`] : []),
+    // Gmail delivers to Bcc and takes the header out of what others receive.
+    ...(bcc.length ? [`Bcc: ${bcc.map(address).join(', ')}`] : []),
     `Subject: ${encodeWord(draft.subject.replace(/[\r\n]+/g, ' '))}`,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset="UTF-8"',
-    'Content-Transfer-Encoding: base64',
   ]
   let threadId: string | undefined
   if (draft.threadId) {
@@ -445,31 +502,12 @@ export async function send(google: Google, draft: Draft) {
     }
     threadId = thread.id
   }
-  const body = Buffer.from(draft.text, 'utf8').toString('base64').replace(/.{76}/g, '$&\r\n')
-  const raw = Buffer.from(`${headers.join('\r\n')}\r\n\r\n${body}`).toString('base64url')
+  const mime = mimeBody(draft.text ?? '', draft.html)
+  const raw = Buffer.from(`${[...headers, ...mime.headers].join('\r\n')}\r\n\r\n${mime.body}`).toString('base64url')
   await google.request(`${GMAIL}/messages/send`, { method: 'POST', body: JSON.stringify({ raw, threadId }) })
 }
 
 // Unsubscribing -----------------------------------------------------------------------------------
-
-function isPrivateAddress(ip: string) {
-  if (ip.includes(':')) {
-    const lower = ip.toLowerCase()
-    if (lower.startsWith('::ffff:')) return isPrivateAddress(lower.slice(7))
-    return lower === '::1' || lower === '::' || lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80')
-  }
-  const [a, b] = ip.split('.').map(Number)
-  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224
-}
-
-async function isPublicHttps(url: URL) {
-  if (url.protocol !== 'https:' || (url.port && url.port !== '443')) return false
-  const host = url.hostname.replace(/^\[|\]$/g, '')
-  if (isIP(host)) return !isPrivateAddress(host)
-  if (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) return false
-  const addresses = await lookup(host, { all: true }).catch(() => [])
-  return addresses.length > 0 && addresses.every((a) => !isPrivateAddress(a.address))
-}
 
 /**
  * RFC 8058 one-click when the sender supports it (we POST for you). Otherwise the
