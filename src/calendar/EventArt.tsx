@@ -1,3 +1,4 @@
+import { Dashes, LINE, Sparkle, Squares, Sunburst, useArtFilters } from '../components/art'
 import type { CalendarEvent } from '../lib/types'
 
 // A picture for an event, like Google Calendar's: chosen from words in the title ("coffee",
@@ -46,181 +47,169 @@ export function artFor(event: Pick<CalendarEvent, 'title' | 'art'>): ArtTheme | 
   return WORDS.find(([, pattern]) => pattern.test(text))?.[0] ?? null
 }
 
-const BACKGROUND: Record<ArtTheme, string> = {
-  coffee: 'art-cream',
-  meal: 'art-blush',
-  drinks: 'art-lilac',
-  travel: 'art-sky',
-  party: 'art-sun-soft',
-  sport: 'art-sage',
-  health: 'art-mint',
-  call: 'art-lilac',
-  learn: 'art-cream',
-  delivery: 'art-sun-soft',
-  show: 'art-blush',
-  nature: 'art-sage',
+interface SceneProps {
+  grain: string
+  hand: string
 }
 
-function Scene({ theme }: { theme: ArtTheme }) {
+// Each picture: one or two grainy shapes, the thing itself drawn in line, a small accent.
+// Drawn in a 340 × 120 box, mostly in the middle so it crops well on narrow cards.
+function Scene({ theme, grain, hand }: { theme: ArtTheme } & SceneProps) {
+  const drawn = { className: 'art-drawn', strokeWidth: LINE, filter: hand }
+  const line = { className: 'art-ink art-line', strokeWidth: LINE, filter: hand }
   switch (theme) {
     case 'coffee':
       return (
         <>
-          <ellipse className="art-paper" cx={170} cy={104} rx={58} ry={10} />
-          <path className="art-coral" d="M130 52 H206 V80 a30 30 0 0 1 -30 30 H160 a30 30 0 0 1 -30 -30 Z" />
-          <path className="art-coral art-stroke" d="M206 62 a14 14 0 0 1 0 28" strokeWidth={8} />
-          <path className="art-cocoa art-stroke" d="M154 40 c-6 -8 6 -12 0 -22 M172 40 c-6 -8 6 -12 0 -22 M190 40 c-6 -8 6 -12 0 -22" strokeWidth={4} strokeLinecap="round" />
-          <circle className="art-sun" cx={62} cy={40} r={14} />
-          <circle className="art-lilac" cx={272} cy={86} r={18} />
+          <path className="art-pink" filter={grain} d="M128 92 C110 70 124 34 156 36 C172 14 214 22 212 50 C236 60 230 100 200 100 C186 116 146 114 128 92 Z" />
+          <path {...drawn} d="M146 50 H194 V72 a22 22 0 0 1 -22 22 H168 a22 22 0 0 1 -22 -22 Z" />
+          <path {...line} d="M194 58 a11 11 0 0 1 0 22 M136 104 H204" />
+          <path {...line} d="M160 40 C154 32 166 26 160 16 M178 40 C172 32 184 26 178 16" />
+          <Sparkle x={240} y={30} r={7} />
+          <Squares x={86} y={28} cols={2} rows={2} size={9} gap={4} angle={-10} skip={[1]} />
         </>
       )
     case 'meal':
       return (
         <>
-          <circle className="art-paper" cx={170} cy={66} r={46} />
-          <circle className="art-sun-soft" cx={170} cy={66} r={32} />
-          <circle className="art-coral" cx={160} cy={60} r={10} />
-          <circle className="art-sage-strong" cx={182} cy={74} r={8} />
-          <path className="art-cocoa art-stroke" d="M100 30 V102 M92 30 V54 a8 8 0 0 0 16 0 V30 M240 30 c12 10 12 34 0 40 V102" strokeWidth={5} strokeLinecap="round" />
-          <circle className="art-periwinkle" cx={286} cy={30} r={10} />
+          <circle className="art-coral" filter={grain} cx={170} cy={64} r={44} />
+          <circle {...drawn} cx={170} cy={64} r={28} />
+          <path {...line} d="M116 22 V104 M108 22 V40 a8 8 0 0 0 16 0 V22 M226 22 C238 32 238 56 226 62 V104" />
+          <Sparkle x={258} y={34} r={7} />
+          <Dashes lines={[[82, 52, 94, 58], [80, 72, 94, 72]]} />
         </>
       )
     case 'drinks':
       return (
         <>
-          <path className="art-paper" d="M130 30 H170 L162 80 H138 Z" transform="rotate(-10 150 60)" />
-          <path className="art-sun" d="M134 44 H166 L160 78 H140 Z" transform="rotate(-10 150 60)" />
-          <path className="art-paper" d="M178 30 H218 L210 80 H186 Z" transform="rotate(10 198 60)" />
-          <path className="art-coral" d="M182 50 H214 L208 78 H188 Z" transform="rotate(10 198 60)" />
-          <path className="art-cocoa art-stroke" d="M146 86 V108 M200 86 V108" strokeWidth={5} strokeLinecap="round" />
-          <circle className="art-paper" cx={174} cy={22} r={4} />
-          <circle className="art-paper" cx={184} cy={12} r={3} />
-          <circle className="art-periwinkle" cx={60} cy={84} r={16} />
+          <path className="art-periwinkle" filter={grain} d="M110 120 A60 60 0 0 1 230 120 Z" />
+          <path {...drawn} d="M136 34 H170 C170 58 162 70 153 70 C144 70 136 58 136 34 Z M153 70 V100 M142 100 H164" transform="rotate(-12 153 67)" />
+          <path {...drawn} d="M176 34 H210 C210 58 202 70 193 70 C184 70 176 58 176 34 Z M193 70 V100 M182 100 H204" transform="rotate(12 193 67)" />
+          <Sunburst cx={172} cy={18} inner={3} outer={14} count={12} width={2} />
+          <Dashes lines={[[246, 40, 260, 34], [248, 58, 262, 60]]} />
         </>
       )
     case 'travel':
       return (
         <>
-          <path className="art-paper" d="M40 96 a22 22 0 0 1 40 -12 a16 16 0 0 1 28 12 Z" />
-          <path className="art-paper" d="M236 50 a16 16 0 0 1 30 -8 a12 12 0 0 1 22 8 Z" />
-          <path className="art-periwinkle-strong art-stroke" d="M70 70 Q150 -10 236 40" strokeWidth={3} strokeDasharray="2 10" strokeLinecap="round" />
-          <g transform="translate(176 62) rotate(-18)">
-            <path className="art-coral" d="M-40 0 C-40 -6 -30 -8 0 -8 H30 C40 -8 46 -4 46 0 C46 4 40 8 30 8 H0 C-30 8 -40 6 -40 0 Z" />
-            <path className="art-coral" d="M2 -6 L-14 -34 H-4 L22 -6 Z M2 6 L-14 34 H-4 L22 6 Z M-34 -4 L-44 -18 H-38 L-24 -4 Z" />
+          <path className="art-blue" filter={grain} d="M220 10 C256 20 276 56 266 92 C252 64 230 44 204 36 Z" />
+          <path {...line} d="M70 96 C110 110 130 70 170 64" strokeDasharray="2 9" />
+          <g transform="translate(196 58) rotate(-16)" filter={hand}>
+            <path className="art-drawn" strokeWidth={LINE} d="M-6 -6 L-20 -34 H-10 L14 -6 Z M-6 6 L-20 34 H-10 L14 6 Z M-36 -4 L-44 -16 H-38 L-26 -4 Z" />
+            <path className="art-drawn" strokeWidth={LINE} d="M-40 0 C-40 -6 -30 -8 0 -8 H28 C38 -8 44 -4 44 0 C44 4 38 8 28 8 H0 C-30 8 -40 6 -40 0 Z" />
           </g>
-          <circle className="art-sun" cx={290} cy={96} r={12} />
+          <Sparkle x={96} y={30} r={7} />
         </>
       )
     case 'party':
       return (
         <>
-          <path className="art-cocoa art-stroke" d="M140 70 C136 90 150 96 144 120 M184 60 C190 84 176 94 184 120 M222 74 C218 92 230 100 224 120" strokeWidth={2} />
-          <ellipse className="art-coral" cx={140} cy={46} rx={20} ry={25} />
-          <ellipse className="art-periwinkle" cx={184} cy={36} rx={20} ry={25} />
-          <ellipse className="art-sun" cx={222} cy={50} rx={18} ry={23} />
-          {[
-            [60, 30, 'art-coral'],
-            [86, 80, 'art-sage-strong'],
-            [270, 26, 'art-periwinkle'],
-            [290, 84, 'art-coral'],
-            [102, 40, 'art-sun'],
-          ].map(([x, y, c]) => (
-            <rect key={`${x}-${y}`} className={String(c)} x={Number(x)} y={Number(y)} width={8} height={14} rx={2} transform={`rotate(${Number(x) % 60} ${x} ${y})`} />
-          ))}
+          <g filter={grain}>
+            <ellipse className="art-pink" cx={150} cy={44} rx={20} ry={25} />
+            <ellipse className="art-coral" cx={192} cy={36} rx={19} ry={24} />
+          </g>
+          <path {...line} d="M150 70 C144 84 156 92 150 112 M192 61 C198 78 186 90 194 112" />
+          <Sunburst cx={246} cy={52} inner={5} outer={24} count={18} width={2} />
+          <Dashes lines={[[96, 30, 106, 40], [100, 70, 112, 66], [276, 92, 288, 86]]} />
+          <Sparkle x={112} y={96} r={6} />
         </>
       )
     case 'sport':
       return (
         <>
-          <rect className="art-cocoa" x={120} y={58} width={100} height={8} rx={4} />
-          <rect className="art-olive" x={104} y={36} width={18} height={52} rx={6} />
-          <rect className="art-olive" x={218} y={36} width={18} height={52} rx={6} />
-          <rect className="art-sage-strong" x={90} y={44} width={14} height={36} rx={5} />
-          <rect className="art-sage-strong" x={236} y={44} width={14} height={36} rx={5} />
-          <path className="art-paper art-stroke" d="M40 40 H70 M30 62 H66 M44 84 H72" strokeWidth={5} strokeLinecap="round" />
-          <circle className="art-sun" cx={290} cy={30} r={12} />
+          <path className="art-periwinkle" filter={grain} d="M118 120 A54 54 0 0 1 226 120 Z" />
+          <circle {...drawn} cx={172} cy={58} r={26} />
+          <path {...line} d="M150 44 C164 52 180 52 194 44 M150 72 C164 64 180 64 194 72 M172 32 V84" />
+          <Dashes lines={[[106, 46, 132, 46], [100, 60, 128, 60], [108, 74, 132, 74]]} className="art-ink" />
+          <Sparkle x={236} y={24} r={7} />
         </>
       )
     case 'health':
       return (
         <>
-          <circle className="art-paper" cx={170} cy={62} r={44} />
-          <path className="art-coral" d="M160 34 H180 V52 H198 V72 H180 V90 H160 V72 H142 V52 H160 Z" />
-          <path className="art-blush" d="M64 70 c-14 -14 -14 -30 0 -30 c8 0 12 6 12 6 c0 0 4 -6 12 -6 c14 0 14 16 0 30 l-12 12 Z" />
-          <circle className="art-sage-strong" cx={276} cy={40} r={10} />
+          <rect className="art-pink" filter={grain} x={138} y={26} width={68} height={68} rx={6} transform="rotate(-8 172 60)" />
+          <path {...drawn} d="M164 36 H180 V52 H196 V68 H180 V84 H164 V68 H148 V52 H164 Z" />
+          <path {...line} d="M92 66 c-12 -12 -12 -26 0 -26 c7 0 10 5 10 5 c0 0 3 -5 10 -5 c12 0 12 14 0 26 l-10 10 Z" />
+          <Sparkle x={248} y={36} r={7} />
         </>
       )
     case 'call':
       return (
         <>
-          <path className="art-paper" d="M96 24 H196 a14 14 0 0 1 14 14 V70 a14 14 0 0 1 -14 14 H128 L108 102 V84 H96 a14 14 0 0 1 -14 -14 V38 a14 14 0 0 1 14 -14 Z" />
-          <path className="art-periwinkle" d="M176 46 H252 a12 12 0 0 1 12 12 V84 a12 12 0 0 1 -12 12 H244 V110 L228 96 H176 a12 12 0 0 1 -12 -12 V58 a12 12 0 0 1 12 -12 Z" />
-          <circle className="art-cocoa" cx={118} cy={54} r={5} />
-          <circle className="art-cocoa" cx={138} cy={54} r={5} />
-          <circle className="art-cocoa" cx={158} cy={54} r={5} />
-          <circle className="art-sun" cx={50} cy={92} r={12} />
+          <rect className="art-periwinkle" filter={grain} x={170} y={40} width={88} height={56} rx={10} />
+          <path {...drawn} d="M106 24 H186 a10 10 0 0 1 10 10 V66 a10 10 0 0 1 -10 10 H136 L118 92 V76 H106 a10 10 0 0 1 -10 -10 V34 a10 10 0 0 1 10 -10 Z" />
+          <g className="art-ink">
+            <circle cx={126} cy={50} r={4} />
+            <circle cx={146} cy={50} r={4} />
+            <circle cx={166} cy={50} r={4} />
+          </g>
+          <Sparkle x={274} y={28} r={7} />
         </>
       )
     case 'learn':
       return (
         <>
-          <path className="art-paper" d="M170 40 C150 28 120 28 100 34 V104 C120 98 150 98 170 110 Z" />
-          <path className="art-periwinkle" d="M170 40 C190 28 220 28 240 34 V104 C220 98 190 98 170 110 Z" />
-          <path className="art-line-soft art-stroke" d="M114 50 C130 46 146 46 158 52 M114 66 C130 62 146 62 158 68 M114 82 C130 78 146 78 158 84" strokeWidth={3} strokeLinecap="round" />
-          <g transform="translate(262 44) rotate(30)">
-            <rect className="art-sun" x={-5} y={-30} width={10} height={52} rx={2} />
-            <path className="art-cocoa" d="M-5 22 L0 34 L5 22 Z" />
+          <path className="art-blue" filter={grain} d="M122 120 L222 120 L206 64 L138 64 Z" />
+          <path {...drawn} d="M172 36 C154 26 128 26 110 32 V90 C128 84 154 84 172 94 Z M172 36 C190 26 216 26 234 32 V90 C216 84 190 84 172 94 Z" />
+          <path {...line} d="M122 46 C136 42 150 42 160 46 M122 60 C136 56 150 56 160 60" />
+          <g transform="rotate(-24 266 52)">
+            <path {...drawn} d="M260 20 H272 V70 L266 82 L260 70 Z" />
+            <path {...line} d="M260 30 H272 M260 70 H272" />
           </g>
-          <circle className="art-coral" cx={56} cy={40} r={10} />
+          <Sparkle x={82} y={34} r={6} />
         </>
       )
     case 'delivery':
       return (
         <>
-          <path className="art-cocoa-soft" d="M140 40 L190 26 L240 40 L190 54 Z" />
-          <path className="art-coral" d="M140 40 L190 54 V112 L140 98 Z" />
-          <path className="art-coral-strong" d="M240 40 L190 54 V112 L240 98 Z" />
-          <path className="art-paper" d="M158 35 L208 49 V64 L198 61 V47 L148 33 Z" opacity={0.8} />
-          <path className="art-paper art-stroke" d="M50 60 H110 M70 80 H118 M40 100 H100" strokeWidth={5} strokeLinecap="round" />
-          <circle className="art-sun" cx={286} cy={34} r={12} />
+          <rect className="art-coral" filter={grain} x={140} y={30} width={70} height={70} transform="rotate(10 175 65)" />
+          <path {...drawn} d="M140 46 L176 34 L212 46 L176 58 Z M140 46 L176 58 V98 L140 86 Z M212 46 L176 58 V98 L212 86 Z" />
+          <path {...line} d="M156 40 L192 52 V64" />
+          <path {...line} d="M82 92 C80 60 102 40 128 38 M120 30 L129 38 L121 47" />
+          <Sparkle x={248} y={32} r={7} />
         </>
       )
     case 'show':
       return (
         <>
-          <path className="art-paper" d="M104 34 H236 V52 a10 10 0 0 0 0 20 V90 H104 V72 a10 10 0 0 0 0 -20 Z" />
-          <path className="art-line-soft art-stroke" d="M200 38 V86" strokeWidth={2} strokeDasharray="4 5" />
-          <path className="art-coral" d="M150 44 l6 12 13 2 -9 9 2 13 -12 -6 -12 6 2 -13 -9 -9 13 -2 Z" />
-          <path className="art-cocoa art-stroke" d="M266 30 V74 M266 30 L290 24 V66" strokeWidth={4} strokeLinecap="round" />
-          <circle className="art-cocoa" cx={260} cy={76} r={7} />
-          <circle className="art-cocoa" cx={284} cy={68} r={7} />
-          <circle className="art-sun" cx={52} cy={84} r={14} />
+          <path className="art-pink" filter={grain} d="M118 76 C104 52 124 26 150 34 C166 14 206 18 206 46 C228 52 226 86 200 88 C188 106 140 104 118 76 Z" />
+          <path {...drawn} d="M120 40 H220 V54 a8 8 0 0 0 0 16 V84 H120 V70 a8 8 0 0 0 0 -16 Z" />
+          <path {...line} d="M190 44 V80" strokeDasharray="3 5" />
+          <Sparkle x={154} y={62} r={10} />
+          <path {...line} d="M252 26 V66 M252 26 L274 20 V58" />
+          <circle className="art-ink" cx={247} cy={68} r={6} />
+          <circle className="art-ink" cx={269} cy={60} r={6} />
         </>
       )
     case 'nature':
       return (
         <>
-          <circle className="art-sun" cx={250} cy={40} r={18} />
-          <path className="art-sage-strong" d="M0 120 L80 46 L140 98 L190 60 L260 120 Z" />
-          <path className="art-olive" d="M80 46 L98 62 L86 66 L74 58 Z" opacity={0.6} />
-          <path className="art-paper" d="M40 30 a12 12 0 0 1 22 -6 a10 10 0 0 1 18 6 Z" />
-          <path className="art-olive" d="M262 120 L282 70 L302 120 Z" />
+          <g filter={grain}>
+            <path className="art-blue" d="M96 120 L156 40 L206 120 Z" />
+            <path className="art-periwinkle" d="M168 120 L218 62 L262 120 Z" />
+          </g>
+          <Sunburst cx={252} cy={30} inner={6} outer={24} count={20} width={2} />
+          <path {...line} d="M60 112 C90 96 116 104 136 112 M220 112 C246 100 270 104 296 112" />
+          <Sparkle x={86} y={36} r={6} />
         </>
       )
   }
 }
 
-/** The banner at the top of an event, or a small square version for lists. */
-export function EventArt({ event, size = 'banner' }: { event: Pick<CalendarEvent, 'title' | 'art'>; size?: 'banner' | 'thumb' }) {
+/** The picture for an event (nothing when it has none). */
+export function EventArt({ event, compact }: { event: Pick<CalendarEvent, 'title' | 'art'>; compact?: boolean }) {
   const theme = artFor(event)
   if (!theme) return null
-  return <ArtFor theme={theme} size={size} />
+  return <ArtFor theme={theme} compact={compact} />
 }
 
-export function ArtFor({ theme, size = 'banner' }: { theme: ArtTheme; size?: 'banner' | 'thumb' }) {
+/** `compact`: only the middle of the picture, for small cards. */
+export function ArtFor({ theme, compact }: { theme: ArtTheme; compact?: boolean }) {
+  const { defs, grain, hand } = useArtFilters()
   return (
-    <svg className={`event-art event-art--${size} ${BACKGROUND[theme]}-bg`} viewBox={size === 'thumb' ? '110 0 120 120' : '0 0 340 120'} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <Scene theme={theme} />
+    <svg className={`event-art ${compact ? 'event-art--compact' : ''}`} viewBox={compact ? '76 4 200 112' : '0 0 340 120'} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      {defs}
+      <Scene theme={theme} grain={grain} hand={hand} />
     </svg>
   )
 }

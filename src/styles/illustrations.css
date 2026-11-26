@@ -1,0 +1,145 @@
+/*
+ * Exploration (branch explore/warm-ui): the app stays white and clean; a few illustrations
+ * pop up where a screen is empty and on events. Flat grainy shapes in pink, cobalt,
+ * periwinkle and coral, with black hand-drawn lines. Colours here only.
+ */
+
+:root {
+  --art-pink: #ff5fa8;
+  --art-blue: #2a3cf2;
+  --art-periwinkle: #7c95f5;
+  --art-coral: #ff6d4a;
+  --art-ink: #17161a;
+  --art-paper: #ffffff;
+}
+
+:root[data-theme='dark'] {
+  --art-pink: #ff6fb3;
+  --art-blue: #5262ff;
+  --art-periwinkle: #8ea3ff;
+  --art-coral: #ff815f;
+  --art-ink: #ecebef;
+  --art-paper: #17151c;
+}
+
+.art-pink { color: var(--art-pink); }
+.art-blue { color: var(--art-blue); }
+.art-periwinkle { color: var(--art-periwinkle); }
+.art-coral { color: var(--art-coral); }
+.art-ink { color: var(--art-ink); }
+.art-paper { color: var(--art-paper); }
+
+.illustration [class*='art-'],
+.event-art [class*='art-'] {
+  fill: currentColor;
+}
+
+.illustration .art-line,
+.event-art .art-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Drawn people and objects: white inside, ink outline. */
+.illustration .art-drawn,
+.event-art .art-drawn {
+  fill: var(--art-paper);
+  stroke: var(--art-ink);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.illustration .art-tube-out,
+.event-art .art-tube-out,
+.illustration .art-tube-in,
+.event-art .art-tube-in {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.illustration .art-tube-out,
+.event-art .art-tube-out {
+  stroke: var(--art-ink);
+}
+
+.illustration .art-tube-in,
+.event-art .art-tube-in {
+  stroke: var(--art-paper);
+}
+
+.illustration {
+  display: block;
+  overflow: visible;
+}
+
+.empty--art {
+  gap: 6px;
+}
+
+.empty__art {
+  width: min(320px, 76%);
+  height: auto;
+  margin-bottom: 20px;
+}
+
+/* The empty bottom of the mail and project lists. */
+.list-pane__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-pane__body > * {
+  flex-shrink: 0;
+}
+
+.list-art {
+  width: 58%;
+  max-width: 200px;
+  height: auto;
+  margin: auto auto 0;
+  padding: 24px 0 32px;
+}
+
+@media (max-height: 640px), (max-width: 719px) {
+  .list-art {
+    display: none;
+  }
+}
+
+/* Event pictures and maps */
+
+.event-art {
+  display: block;
+  width: 100%;
+  height: 96px;
+  overflow: visible;
+}
+
+.event-art--empty {
+  display: none;
+}
+
+.event-view > .event-art {
+  margin: 4px 0 8px;
+}
+
+.event-form__side > .field > .event-art {
+  margin: 4px 0 8px;
+}
+
+.event-card > .event-art {
+  height: 72px;
+  margin: -4px 0 6px;
+}
+
+.event-map {
+  display: block;
+  width: 100%;
+  height: 150px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--hover);
+}

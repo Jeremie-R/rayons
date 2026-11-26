@@ -1,102 +1,114 @@
-// Small abstract scenes for empty places: soft shapes, a sun with rays (the "rayons"), and
-// people drawn as a head and a body, no faces. Colours come from --art-* tokens (warm.css),
-// so they follow light and dark.
+import { Dashes, LINE, Sitting, Sparkle, Squares, Standing, Sunburst, useArtFilters } from './art'
+
+// Abstract scenes for empty places: flat grainy shapes, black drawn lines, outlined people.
+// They stay small and to the side; the app around them is plain white.
 
 export type IllustrationKind = 'inbox' | 'clear' | 'project' | 'sidebar'
 
-const Rays = ({ cx, cy, r, length, count = 10, className = 'art-sun' }: { cx: number; cy: number; r: number; length: number; count?: number; className?: string }) => (
-  <g className={`${className} art-stroke`} strokeLinecap="round" strokeWidth={4}>
-    {Array.from({ length: count }, (_, i) => {
-      const angle = (Math.PI * 2 * i) / count
-      return (
-        <line
-          key={i}
-          x1={cx + Math.cos(angle) * (r + 8)}
-          y1={cy + Math.sin(angle) * (r + 8)}
-          x2={cx + Math.cos(angle) * (r + 8 + length)}
-          y2={cy + Math.sin(angle) * (r + 8 + length)}
-        />
-      )
-    })}
-  </g>
-)
-
-/** A person: a head and a rounded body. */
-const Person = ({ x, y, scale = 1, body = 'art-coral', head = 'art-cocoa', lean = 0 }: { x: number; y: number; scale?: number; body?: string; head?: string; lean?: number }) => (
-  <g transform={`translate(${x} ${y}) scale(${scale}) rotate(${lean})`}>
-    <path className={body} d="M-22 0 C-22 -34 -14 -52 0 -52 C14 -52 22 -34 22 0 Z" />
-    <circle className={head} cx={0} cy={-66} r={11} />
-  </g>
-)
-
-const Leaf = ({ x, y, angle, size = 1, className = 'art-sage-strong' }: { x: number; y: number; angle: number; size?: number; className?: string }) => (
-  <path className={className} transform={`translate(${x} ${y}) rotate(${angle}) scale(${size})`} d="M0 0 C8 -14 8 -30 0 -40 C-8 -30 -8 -14 0 0 Z" />
-)
-
 export function Illustration({ kind, className = '' }: { kind: IllustrationKind; className?: string }) {
+  const { defs, grain, hand } = useArtFilters()
+  const height = kind === 'sidebar' ? 170 : 240
   return (
-    <svg className={`illustration illustration--${kind} ${className}`} viewBox="0 0 320 220" role="presentation" aria-hidden="true">
-      {kind === 'inbox' && (
-        <>
-          {/* An arched window with the sun coming up, someone reading a letter. */}
-          <path className="art-lilac" d="M70 210 V100 a70 70 0 0 1 140 0 V210 Z" />
-          <circle className="art-sun" cx={140} cy={118} r={30} />
-          <Rays cx={140} cy={118} r={30} length={12} count={12} />
-          <path className="art-sage" d="M70 210 C110 170 170 172 210 196 V210 Z" />
-          <Person x={232} y={210} scale={1.1} body="art-coral" lean={-4} />
-          <rect className="art-paper" x={180} y={150} width={34} height={26} rx={4} transform="rotate(-14 197 163)" />
-          <path className="art-line art-stroke" d="M187 158 l14 -3 M189 165 l12 -2.6" strokeWidth={2.5} strokeLinecap="round" transform="rotate(-14 197 163)" />
-          <Leaf x={52} y={210} angle={-18} />
-          <Leaf x={58} y={210} angle={14} size={0.8} />
-          <circle className="art-periwinkle" cx={268} cy={70} r={6} />
-          <circle className="art-blush" cx={36} cy={96} r={10} />
-        </>
-      )}
-      {kind === 'clear' && (
-        <>
-          {/* All done: a big sun, hills, someone stretching. */}
-          <circle className="art-sun" cx={160} cy={96} r={40} />
-          <Rays cx={160} cy={96} r={40} length={18} count={14} />
-          <path className="art-sage" d="M0 220 C60 150 120 150 170 190 C210 160 270 150 320 190 V220 Z" />
-          <path className="art-olive" d="M0 220 C80 186 160 196 230 220 Z" opacity={0.6} />
-          <g transform="translate(236 196)">
-            <path className="art-periwinkle" d="M-18 0 C-18 -30 -12 -46 0 -46 C12 -46 18 -30 18 0 Z" />
-            <path className="art-periwinkle art-stroke" d="M-10 -40 L-26 -72 M10 -40 L26 -72" strokeWidth={8} strokeLinecap="round" fill="none" />
-            <circle className="art-cocoa" cx={0} cy={-58} r={10} />
-          </g>
-          <circle className="art-coral" cx={58} cy={64} r={7} />
-          <circle className="art-lilac" cx={280} cy={52} r={12} />
-        </>
-      )}
-      {kind === 'project' && (
-        <>
-          {/* Cards stacking up, someone adding one. */}
-          <rect className="art-blush" x={64} y={84} width={128} height={96} rx={16} transform="rotate(-8 128 132)" />
-          <rect className="art-periwinkle" x={84} y={76} width={128} height={96} rx={16} transform="rotate(4 148 124)" />
-          <rect className="art-paper" x={100} y={70} width={128} height={96} rx={16} />
-          <rect className="art-sun-soft" x={114} y={86} width={52} height={10} rx={5} />
-          <rect className="art-line-soft" x={114} y={106} width={96} height={6} rx={3} />
-          <rect className="art-line-soft" x={114} y={120} width={78} height={6} rx={3} />
-          <circle className="art-coral" cx={206} cy={148} r={8} />
-          <Person x={262} y={212} scale={1.05} body="art-sage-strong" />
-          <circle className="art-sun" cx={40} cy={42} r={18} />
-          <Rays cx={40} cy={42} r={18} length={8} count={9} />
-          <circle className="art-lilac" cx={286} cy={70} r={9} />
-        </>
-      )}
-      {kind === 'sidebar' && (
-        <>
-          {/* A plant on the floor and the sun on the wall. */}
-          <circle className="art-sun-soft" cx={214} cy={70} r={30} />
-          <Rays cx={214} cy={70} r={30} length={10} count={12} className="art-sun-soft" />
-          <Leaf x={110} y={176} angle={-34} size={1.4} />
-          <Leaf x={112} y={176} angle={2} size={1.7} className="art-olive" />
-          <Leaf x={114} y={176} angle={36} size={1.3} />
-          <path className="art-coral" d="M90 172 H134 L128 214 H96 Z" />
-          <path className="art-line-soft art-stroke" d="M40 214 H280" strokeWidth={2} strokeLinecap="round" />
-          <circle className="art-lilac" cx={62} cy={120} r={8} />
-        </>
-      )}
+    <svg className={`illustration illustration--${kind} ${className}`} viewBox={`0 0 320 ${height}`} role="presentation" aria-hidden="true">
+      {defs}
+      {kind === 'inbox' && <Inbox grain={grain} hand={hand} />}
+      {kind === 'clear' && <Clear grain={grain} hand={hand} />}
+      {kind === 'project' && <Project grain={grain} hand={hand} />}
+      {kind === 'sidebar' && <Sidebar grain={grain} hand={hand} />}
     </svg>
+  )
+}
+
+interface SceneProps {
+  grain: string
+  hand: string
+}
+
+/** No conversation open: someone reading a letter on an arch, a sun coming up behind. */
+function Inbox({ grain, hand }: SceneProps) {
+  return (
+    <>
+      <g filter={grain}>
+        <rect className="art-pink" x={46} y={40} width={88} height={88} transform="rotate(-12 90 84)" />
+        <path className="art-periwinkle" d="M96 240 A72 72 0 0 1 240 240 Z" />
+        <path className="art-coral" d="M30 240 C22 214 36 196 26 176 C42 184 56 200 54 222 C62 212 62 200 60 192 C74 206 74 226 66 240 Z" />
+        <circle className="art-blue" cx={286} cy={196} r={14} />
+      </g>
+      <Squares x={22} y={140} cols={3} rows={3} size={12} gap={5} angle={-10} skip={[2, 6]} />
+      <Sunburst cx={262} cy={70} inner={8} outer={44} count={30} />
+      <Sitting x={150} y={170} scale={0.95} arms="read" hand={hand} />
+      <path className="art-ink art-line" d="M196 104 C214 98 222 84 214 76 C206 68 196 80 206 88 C220 98 236 88 238 72" strokeWidth={LINE} filter={hand} />
+      <Sparkle x={182} y={40} r={7} />
+      <Sparkle x={300} y={150} r={8} />
+      <Dashes lines={[[226, 122, 240, 128], [232, 138, 248, 138]]} />
+    </>
+  )
+}
+
+/** Inbox all clear: someone cheering under a big sun. */
+function Clear({ grain, hand }: SceneProps) {
+  return (
+    <>
+      <g filter={grain}>
+        <path className="art-pink" d="M226 240 C214 214 236 198 228 176 C222 158 238 140 256 150 C272 160 262 180 276 192 C292 206 286 230 276 240 Z" />
+        <path className="art-coral" d="M40 240 C34 220 46 206 40 190 C54 198 64 214 60 232 C68 224 70 214 68 206 C82 220 80 234 74 240 Z" />
+        <circle className="art-blue" cx={82} cy={58} r={16} />
+        <path className="art-periwinkle" d="M118 240 A44 44 0 0 1 206 240 Z" />
+      </g>
+      <Sunburst cx={160} cy={74} inner={12} outer={58} count={34} />
+      <Standing x={160} y={236} scale={0.92} pose="cheer" hand={hand} />
+      <Squares x={250} y={40} cols={3} rows={2} size={12} gap={5} angle={12} skip={[4]} />
+      <path className="art-ink art-line" d="M44 150 C28 116 40 82 72 74" strokeWidth={LINE} filter={hand} />
+      <path className="art-ink art-line" d="M62 66 L73 74 L62 84" strokeWidth={LINE} filter={hand} />
+      <Sparkle x={250} y={118} r={8} />
+      <Sparkle x={34} y={42} r={6} />
+      <Dashes lines={[[100, 120, 112, 128], [210, 124, 222, 116]]} />
+    </>
+  )
+}
+
+/** No project open: a stack of shapes with a ladder, someone bringing a card. */
+function Project({ grain, hand }: SceneProps) {
+  return (
+    <>
+      <g filter={grain}>
+        <path className="art-blue" d="M150 240 L250 240 L232 150 L168 150 Z" />
+        <rect className="art-pink" x={176} y={92} width={54} height={54} transform="rotate(14 203 119)" />
+        <path className="art-coral" d="M128 26 C150 38 160 62 146 80 C132 96 108 88 108 68 C108 52 120 44 128 26 Z" />
+        <circle className="art-periwinkle" cx={286} cy={196} r={20} />
+      </g>
+      <g className="art-ink art-line" strokeWidth={LINE} filter={hand}>
+        <path d="M262 240 L240 132 M282 240 L260 132" />
+        {[0, 1, 2, 3, 4].map((i) => {
+          const t = 0.14 + i * 0.18
+          const y = 240 - 108 * t
+          return <line key={i} x1={262 - 22 * t} y1={y} x2={282 - 22 * t} y2={y} />
+        })}
+      </g>
+      <Standing x={86} y={236} scale={0.92} pose="hold" hand={hand} />
+      <rect className="art-drawn" x={84} y={166} width={18} height={18} rx={1.5} strokeWidth={LINE} transform="rotate(-8 93 175)" filter={hand} />
+      <Squares x={116} y={128} cols={2} rows={1} size={13} gap={10} angle={-20} />
+      <path className="art-ink art-line" d="M40 186 C22 140 44 92 92 82" strokeWidth={LINE} filter={hand} />
+      <path className="art-ink art-line" d="M82 74 L93 82 L82 92" strokeWidth={LINE} filter={hand} />
+      <Sparkle x={262} y={60} r={9} />
+      <Sparkle x={40} y={40} r={6} />
+    </>
+  )
+}
+
+/** The empty bottom of a list: a few shapes, no people. */
+function Sidebar({ grain, hand }: SceneProps) {
+  return (
+    <>
+      <g filter={grain}>
+        <path className="art-periwinkle" d="M150 170 A58 58 0 0 1 266 170 Z" />
+        <path className="art-pink" d="M70 130 C56 112 70 92 90 100 C104 84 128 96 120 116 C134 126 124 146 106 140 C96 154 76 148 70 130 Z" />
+        <circle className="art-coral" cx={250} cy={52} r={9} />
+      </g>
+      <Sunburst cx={208} cy={88} inner={6} outer={30} count={24} width={2} />
+      <Squares x={40} y={40} cols={3} rows={2} size={11} gap={4} angle={-8} skip={[2]} />
+      <path className="art-ink art-line" d="M118 158 C140 150 142 128 128 126 C116 124 116 142 134 146 C158 152 170 132 178 118" strokeWidth={2} filter={hand} />
+      <Sparkle x={150} y={56} r={6} />
+    </>
   )
 }

@@ -192,7 +192,7 @@ function EventCard({ event, past, onOpen }: { event: CalendarEvent; past: boolea
   const start = parseDate(event.start)
   return (
     <button type="button" className={`event-card ${past ? 'is-past' : ''}`} onClick={(e) => onOpen(e.currentTarget.getBoundingClientRect())}>
-      <EventArt event={event} />
+      <EventArt event={event} compact />
       <span className="event-card__when">
         <span>{formatDay(start)}</span>
         <span className="event-card__time">
