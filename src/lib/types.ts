@@ -107,9 +107,11 @@ export interface CalendarEvent {
   link?: string
   /** False for events you were invited to and can't move. */
   canEdit: boolean
+  /** Its picture: a theme picked by hand, 'none', or null to choose from the title. */
+  art?: string | null
 }
 
-export type EventDraft = Pick<CalendarEvent, 'title' | 'start' | 'end' | 'allDay' | 'location' | 'description' | 'tag' | 'projectId' | 'threadId'> & {
+export type EventDraft = Pick<CalendarEvent, 'title' | 'start' | 'end' | 'allDay' | 'location' | 'description' | 'tag' | 'projectId' | 'threadId' | 'art'> & {
   calendarId?: string
 }
 

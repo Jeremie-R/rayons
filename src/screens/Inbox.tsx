@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { ComposeIcon, FilterIcon, InboxIcon, SearchIcon } from '../components/icons'
 import { Menu, MenuItem } from '../components/overlays'
+import { Illustration } from '../components/Illustration'
 import { Button, EmptyState, ErrorNote, IconButton, Loading, TagChip } from '../components/ui'
 import { ResizeHandle, useListWidth } from '../components/ResizeHandle'
 import { keys, prefetch, useBackend, useQuery } from '../data/store'
@@ -188,7 +189,7 @@ export function InboxScreen() {
             ) : !data ? (
               <Loading label="Loading mail" />
             ) : threads.length === 0 ? (
-              <EmptyState title={search ? 'Nothing matches' : box === 'inbox' ? 'All clear' : `Nothing in ${TITLES[box].toLowerCase()}`} icon={InboxIcon}>
+              <EmptyState title={search ? 'Nothing matches' : box === 'inbox' ? 'All clear' : `Nothing in ${TITLES[box].toLowerCase()}`} icon={InboxIcon} art={!search && box === 'inbox' ? 'clear' : undefined}>
                 {search ? 'Try other words, or another tag.' : box === 'inbox' && tag !== 'all' ? `No ${tag} mail in your inbox.` : null}
               </EmptyState>
             ) : (
@@ -209,6 +210,7 @@ export function InboxScreen() {
                 <Button onClick={() => setParam('box', null)}>back to inbox</Button>
               )}
             </div>
+            <Illustration kind="sidebar" className="list-art" />
           </div>
         </section>
       )}
@@ -220,7 +222,7 @@ export function InboxScreen() {
           {threadId ? (
             <ThreadView threadId={threadId} onBack={() => navigate(listUrl)} onGone={afterGone} />
           ) : (
-            <EmptyState title={unread ? `${unread} unread in ${tag === 'all' ? TITLES[box].toLowerCase() : tag}` : 'No conversation selected'} icon={InboxIcon}>
+            <EmptyState title={unread ? `${unread} unread in ${tag === 'all' ? TITLES[box].toLowerCase() : tag}` : 'No conversation selected'} icon={InboxIcon} art="inbox">
               Pick a conversation on the left, or press <kbd>j</kbd>. <kbd>?</kbd> shows every shortcut.
             </EmptyState>
           )}

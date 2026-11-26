@@ -1,6 +1,7 @@
 import { useEffect, useState, type ButtonHTMLAttributes, type ComponentType, type ReactNode, type SVGProps } from 'react'
 import { TAGS, type Person, type Tag, type TagId } from '../lib/types'
 import { pictureFor } from '../lib/avatars'
+import { Illustration, type IllustrationKind } from './Illustration'
 import { tagLabel } from '../lib/tags'
 
 export type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
@@ -135,10 +136,11 @@ export function Segmented<T extends string>({
   )
 }
 
-export function EmptyState({ title, children, icon: Icon }: { title: string; children?: ReactNode; icon?: IconComponent }) {
+export function EmptyState({ title, children, icon: Icon, art }: { title: string; children?: ReactNode; icon?: IconComponent; art?: IllustrationKind }) {
   return (
-    <div className="empty">
-      {Icon && (
+    <div className={`empty ${art ? 'empty--art' : ''}`}>
+      {art && <Illustration kind={art} className="empty__art" />}
+      {!art && Icon && (
         <span className="empty__icon">
           <Icon size={24} />
         </span>

@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { AddToProjectIcon, FilterIcon, ProjectsIcon } from '../components/icons'
 import { Dialog, Menu, MenuHeading, MenuItem, MenuSeparator, useFeedback } from '../components/overlays'
+import { Illustration } from '../components/Illustration'
 import { Button, EmptyState, ErrorNote, IconButton, Loading, TagDot, TagDots } from '../components/ui'
 import { ResizeHandle, useListWidth } from '../components/ResizeHandle'
 import { invalidate, keys, useBackend, useQuery } from '../data/store'
@@ -95,7 +96,7 @@ export function ProjectsScreen() {
             ) : !data ? (
               <Loading label="Loading projects" />
             ) : projects.length === 0 ? (
-              <EmptyState title={showArchived ? 'No archived projects' : tag ? `No projects with ${tag}` : 'No projects yet'} icon={ProjectsIcon}>
+              <EmptyState title={showArchived ? 'No archived projects' : tag ? `No projects with ${tag}` : 'No projects yet'} icon={ProjectsIcon} art={!showArchived && !tag ? 'project' : undefined}>
                 {!showArchived && !tag && 'A project gathers the mail, events, files and notes about one thing in your life.'}
               </EmptyState>
             ) : (
@@ -126,6 +127,7 @@ export function ProjectsScreen() {
                 {!showArchived && archivedWithNews > 0 && <span className="count-dot" aria-label={`${archivedWithNews} archived with new mail`} />}
               </Button>
             </div>
+            <Illustration kind="sidebar" className="list-art" />
           </div>
         </section>
       )}
@@ -137,7 +139,7 @@ export function ProjectsScreen() {
           {projectId ? (
             <ProjectDetail key={projectId} projectId={projectId} threadId={threadId} onBack={() => navigate(`/projects${query}`)} />
           ) : (
-            <EmptyState title="Pick a project" icon={ProjectsIcon}>
+            <EmptyState title="Pick a project" icon={ProjectsIcon} art="project">
               Or start a new one. Add mail to a project from any conversation, with the{' '}
               <AddToProjectIcon size={16} style={{ display: 'inline', verticalAlign: '-3px' }} aria-label="add to project" /> button.
             </EmptyState>

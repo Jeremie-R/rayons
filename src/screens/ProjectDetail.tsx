@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import connectorDot from '../assets/event-connector.svg'
+import { EventArt } from '../calendar/EventArt'
 import { EventDialog, newDraft, type EventEditing } from '../calendar/EventDialog'
 import { AddEventIcon, ArchiveIcon, AttachmentIcon, BackIcon, CloseIcon, EditIcon, InboxIcon, MailIcon, MoreIcon, PlusIcon, TrashIcon } from '../components/icons'
 import { Menu, MenuItem, MenuSeparator, useFeedback } from '../components/overlays'
@@ -191,6 +192,7 @@ function EventCard({ event, past, onOpen }: { event: CalendarEvent; past: boolea
   const start = parseDate(event.start)
   return (
     <button type="button" className={`event-card ${past ? 'is-past' : ''}`} onClick={(e) => onOpen(e.currentTarget.getBoundingClientRect())}>
+      <EventArt event={event} />
       <span className="event-card__when">
         <span>{formatDay(start)}</span>
         <span className="event-card__time">

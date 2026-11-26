@@ -58,6 +58,7 @@ function toEvent(calendar: CalendarInfo, event: GEvent): CalendarEvent {
     tag,
     projectId: props.rayonsProject || null,
     threadId: props.rayonsThread || null,
+    art: props.rayonsArt || null,
     link: event.htmlLink,
     canEdit: calendar.canEdit && (!event.organizer || !!event.organizer.self || !!event.guestsCanModify),
   }
@@ -114,6 +115,7 @@ function body(draft: Partial<EventDraft>, timeZone?: string) {
   if (draft.tag !== undefined) props.rayonsTag = draft.tag ?? ''
   if (draft.projectId !== undefined) props.rayonsProject = draft.projectId ?? ''
   if (draft.threadId !== undefined) props.rayonsThread = draft.threadId ?? ''
+  if (draft.art !== undefined) props.rayonsArt = draft.art ?? ''
   if (Object.keys(props).length) out.extendedProperties = { private: props }
   return out
 }

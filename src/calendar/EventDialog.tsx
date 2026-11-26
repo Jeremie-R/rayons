@@ -8,6 +8,7 @@ import { invalidate, keys, useBackend, useQuery } from '../data/store'
 import { addDays, dateKey, parseDate, toLocalIso } from '../lib/dates'
 import { useIsMobile } from '../lib/hooks'
 import { htmlToText } from '../lib/html'
+import { ART_LABELS, ART_THEMES, artFor, EventArt } from './EventArt'
 import { useShortcut } from '../lib/shortcuts'
 import { TAGS, type CalendarEvent, type EventDraft, type Tag } from '../lib/types'
 import { errorText } from '../mail/actions'
@@ -50,6 +51,7 @@ interface Form {
   projectId: string | null
   threadId: string | null
   calendarId: string
+  art: string | null
 }
 
 function toForm(event: EventDraft & { calendarId?: string }): Form {
@@ -70,6 +72,7 @@ function toForm(event: EventDraft & { calendarId?: string }): Form {
     projectId: event.projectId,
     threadId: event.threadId ?? null,
     calendarId: event.calendarId ?? '',
+    art: event.art ?? null,
   }
 }
 
@@ -82,6 +85,7 @@ function fromForm(form: Form): EventDraft | string {
     tag: form.tag,
     projectId: form.projectId,
     threadId: form.threadId,
+    art: form.art,
     ...(form.calendarId ? { calendarId: form.calendarId } : {}),
   }
   if (form.allDay) {
@@ -181,6 +185,7 @@ function EventView({ event, onEdit, onClose }: { event: CalendarEvent; onEdit: (
         }
       }}
     >
+      <EventArt event={event} />
       <h3 className="event-view__title">{event.title || '(no title)'}</h3>
       <p className="event-view__row">
         <ClockIcon size={16} />
@@ -194,6 +199,7 @@ function EventView({ event, onEdit, onClose }: { event: CalendarEvent; onEdit: (
           </a>
         </p>
       )}
+      {looksLikePlace(event.location) && <MapPreview place={event.location} />}
       {event.description && (
         <p className="event-view__row event-view__notes">
           <NotesIcon size={16} />
@@ -344,7 +350,7 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
     try {
       if (original) {
         const { calendarId: _, ...patch } = draft
-        await backend.updateEvent(original.id, readOnly ? { tag: draft.tag, projectId: draft.projectId, threadId: draft.threadId } : patch)
+        await backend.updateEvent(original.id, readOnly ? { tag: draft.tag, projectId: draft.projectId, threadId: draft.threadId, art: draft.art } : patch)
       } else {
         await backend.createEvent(draft)
       }
@@ -442,8 +448,23 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
     </div>
   )
 
+  const autoArt = artFor({ title: form.title, art: null })
   const side = (
     <div className="event-form__side">
+      <div className="field">
+        <span className="field__label">Picture</span>
+        {artFor({ title: form.title, art: form.art }) ? <EventArt event={{ title: form.title, art: form.art }} /> : <div className="event-art event-art--empty" />}
+        <select className="field__input" value={form.art ?? ''} onChange={(e) => set('art', e.target.value || null)} aria-label="Picture">
+          <option value="">{autoArt ? `From the title (${ART_LABELS[autoArt].toLowerCase()})` : 'From the title (none found)'}</option>
+          <option value="none">No picture</option>
+          {ART_THEMES.map((theme) => (
+            <option key={theme} value={theme}>
+              {ART_LABELS[theme]}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {project && (
         <Link to={`/projects/${project.id}`} className="project-card" data-tag={project.tags[0] ?? 'none'} onClick={onClose}>
           <FolderIcon size={20} />
@@ -544,5 +565,25 @@ function EventForm({ editing, onClose, wide, onDirtyChange }: { editing: EventEd
         </Button>
       </div>
     </form>
+  )
+}
+
+/** "Rosengatan 12", "Café Saturnus, Malmö": worth a map. "Home", a meeting link: not. */
+const looksLikePlace = (location: string) => {
+  const text = location.trim()
+  if (text.length < 6 || /^https?:\/\//i.test(text) || /\b(zoom|meet\.google|teams|online|phone|call)\b/i.test(text)) return false
+  return /\d/.test(text) || text.includes(',') || text.split(/\s+/).length >= 2
+}
+
+/** A small map of the place, from Google Maps' embeddable page (no key needed). */
+function MapPreview({ place }: { place: string }) {
+  return (
+    <iframe
+      className="event-map"
+      title={`Map of ${place}`}
+      src={`https://maps.google.com/maps?q=${encodeURIComponent(place)}&z=15&output=embed`}
+      loading="lazy"
+      referrerPolicy="no-referrer-when-downgrade"
+    />
   )
 }
