@@ -4,6 +4,7 @@ import { MoreIcon, TranslateIcon } from '../components/icons'
 import { tooltip } from '../components/ui'
 import { useTheme } from '../lib/theme'
 import { languageName } from '../lib/translate'
+import { useCompose } from './Composer'
 import { useTranslated, type Translated } from './useTranslated'
 
 // Mail HTML is untrusted. It is sanitised, then shown in a sandboxed iframe without scripts.
@@ -125,8 +126,37 @@ function cutFrom(doc: Document, start: Element): [string, string] {
   return [main, quoted.innerHTML]
 }
 
+/**
+ * Links in a mail open in a new tab next to Rayons (opened from the app rather than the
+ * sandboxed frame, which some browsers turn into a popup window). mailto: starts a message.
+ */
+function useOpenLink() {
+  const compose = useCompose()
+  const ref = useRef(compose)
+  ref.current = compose
+  return useRef((href: string) => {
+    let url: URL
+    try {
+      url = new URL(href)
+    } catch {
+      return
+    }
+    if (url.protocol === 'mailto:') {
+      const to = decodeURIComponent(url.pathname)
+        .split(',')
+        .map((email) => email.trim())
+        .filter(Boolean)
+        .map((email) => ({ name: '', email }))
+      ref.current.open({ to, subject: url.searchParams.get('subject') ?? '' })
+    } else if (url.protocol === 'https:' || url.protocol === 'http:') {
+      window.open(url.href, '_blank', 'noopener,noreferrer')
+    }
+  }).current
+}
+
 function HtmlBody({ html, text, translateTo, cacheKey }: { html: string; text: string; translateTo: string | null; cacheKey: string }) {
   const { resolved } = useTheme()
+  const openLink = useOpenLink()
   const frame = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(120)
   const [showQuoted, setShowQuoted] = useState(false)
@@ -164,6 +194,12 @@ function HtmlBody({ html, text, translateTo, cacheKey }: { html: string; text: s
       observer?.disconnect()
       observer = new ResizeObserver(update)
       observer.observe(doc.body)
+      doc.addEventListener('click', (event) => {
+        const link = (event.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+        if (!link || link.getAttribute('href')?.startsWith('#')) return
+        event.preventDefault()
+        openLink(link.href)
+      })
     }
     iframe.addEventListener('load', measure)
     return () => {

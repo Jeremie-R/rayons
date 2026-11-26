@@ -141,7 +141,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
-        link: { openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: 'https', HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' } },
+        // A click on a link opens it in a new tab; the bar over it offers to change or remove it.
+        link: { openOnClick: true, autolink: true, linkOnPaste: true, defaultProtocol: 'https', HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' } },
       }),
       Image.configure({ allowBase64: true }),
       Placeholder.configure({ placeholder }),
