@@ -197,6 +197,7 @@ export function InboxScreen() {
                 onHover={(t) => load(t.id)}
                 showRecipients={box === 'sent'}
                 onSwipe={box === 'spam' ? undefined : (t) => void actions.toggleArchived(t).then((ok) => ok && t.id === threadId && navigate(listUrl))}
+                onArchive={box === 'spam' || box === 'sent' ? undefined : (t) => void actions.toggleArchived(t).then((ok) => ok && t.id === threadId && navigate(listUrl))}
               />
             )}
             <div className="list-pane__footer">

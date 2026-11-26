@@ -1037,3 +1037,44 @@
   touch-action: pan-y;
   will-change: transform;
 }
+
+/* Archive on hover (desktop): the button takes the place of the date. */
+
+.thread-list > li.has-actions {
+  position: relative;
+}
+
+.thread-row__actions {
+  position: absolute;
+  top: 10px;
+  right: calc(var(--gutter) - 8px);
+  display: none;
+  gap: 2px;
+}
+
+@media (hover: hover) and (min-width: 720px) {
+  .thread-list > li.has-actions:hover .thread-row__actions,
+  .thread-list > li.has-actions:focus-within .thread-row__actions {
+    display: flex;
+  }
+
+  .thread-list > li.has-actions:hover .thread-row__date,
+  .thread-list > li.has-actions:focus-within .thread-row__date {
+    visibility: hidden;
+  }
+}
+
+.thread-row__action {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  background: var(--hover);
+}
+
+.thread-row__action:hover {
+  background: var(--selected);
+  color: var(--ink);
+}

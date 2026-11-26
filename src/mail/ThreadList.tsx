@@ -1,5 +1,5 @@
-import { AttachmentIcon, FolderIcon } from '../components/icons'
-import { TagDot } from '../components/ui'
+import { ArchiveIcon, AttachmentIcon, FolderIcon, InboxIcon } from '../components/icons'
+import { TagDot, tooltip } from '../components/ui'
 import { formatListDate } from '../lib/dates'
 import { SwipeRow } from './SwipeRow'
 import type { Project, ThreadSummary } from '../lib/types'
@@ -17,9 +17,11 @@ interface ThreadListProps {
   showRecipients?: boolean
   /** Swipe left on a row (touch) to archive it. */
   onSwipe?: (thread: ThreadSummary) => void
+  /** Desktop: an archive button appears over the date while the pointer is on a row. */
+  onArchive?: (thread: ThreadSummary) => void
 }
 
-export function ThreadList({ threads, selectedId, onOpen, variant = 'full', projects, onHover, showRecipients, onSwipe }: ThreadListProps) {
+export function ThreadList({ threads, selectedId, onOpen, variant = 'full', projects, onHover, showRecipients, onSwipe, onArchive }: ThreadListProps) {
   let hoverTimer: number | undefined
   const projectName = (id: string | null) => (id ? projects?.find((p) => p.id === id)?.name : undefined)
   return (
@@ -27,7 +29,7 @@ export function ThreadList({ threads, selectedId, onOpen, variant = 'full', proj
       {threads.map((thread) => {
         const project = variant === 'full' ? projectName(thread.projectId) : undefined
         return (
-          <li key={thread.id}>
+          <li key={thread.id} className={onArchive ? 'has-actions' : undefined}>
             {(() => {
               const rowButton = (
             <button
@@ -74,6 +76,19 @@ export function ThreadList({ threads, selectedId, onOpen, variant = 'full', proj
               )
               return onSwipe ? <SwipeRow onSwipe={() => onSwipe(thread)} label={thread.archived ? 'Inbox' : 'Archive'}>{rowButton}</SwipeRow> : rowButton
             })()}
+            {onArchive && (
+              <span className="thread-row__actions">
+                <button
+                  type="button"
+                  className="thread-row__action"
+                  aria-label={`${thread.archived ? 'Move to inbox' : 'Archive'}: ${thread.subject}`}
+                  {...tooltip(thread.archived ? 'Move to inbox' : 'Archive')}
+                  onClick={() => onArchive(thread)}
+                >
+                  {thread.archived ? <InboxIcon size={18} /> : <ArchiveIcon size={18} />}
+                </button>
+              </span>
+            )}
           </li>
         )
       })}
