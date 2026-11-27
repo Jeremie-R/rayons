@@ -23,7 +23,7 @@ const timeOf = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())
 /** A new one-hour event starting at `at`, or a whole-day one. */
 export function newDraft(
   at: Date,
-  options: { allDay?: boolean; projectId?: string | null; tag?: Tag; threadId?: string | null; title?: string; description?: string } = {},
+  options: { allDay?: boolean; projectId?: string | null; tag?: Tag; threadId?: string | null; title?: string; description?: string; end?: Date } = {},
 ): EventDraft {
   const start = new Date(at)
   const common = {
@@ -35,7 +35,8 @@ export function newDraft(
     threadId: options.threadId ?? null,
   }
   if (options.allDay) return { ...common, start: dateKey(start), end: dateKey(addDays(start, 1)), allDay: true }
-  const end = new Date(start.getTime() + 60 * 60_000)
+  // An hour, unless a range was dragged out on the calendar.
+  const end = options.end && options.end > start ? options.end : new Date(start.getTime() + 60 * 60_000)
   return { ...common, start: toLocalIso(start), end: toLocalIso(end), allDay: false }
 }
 

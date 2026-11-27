@@ -7,7 +7,8 @@ interface ViewProps {
   events: CalendarEvent[]
   /** `anchor` is where the click happened, so the editor can open next to it. */
   onOpen: (event: CalendarEvent, anchor: DOMRect) => void
-  onCreate: (at: Date, allDay: boolean, anchor: DOMRect) => void
+  /** `end` when a time range was dragged out. */
+  onCreate: (at: Date, allDay: boolean, anchor: DOMRect, end?: Date) => void
 }
 
 const rectOf = (event: { currentTarget: Element }) => event.currentTarget.getBoundingClientRect()
@@ -176,6 +177,56 @@ export function TimeGrid({ days, events, onOpen, onCreate, ghost, onStep }: View
     }, 260)
   }
 
+  // Mouse: press on an empty slot and drag to draw the event's time range (15-minute steps).
+  const [drag, setDrag] = useState<{ day: Date; from: number; to: number } | null>(null)
+  const dragStart = useRef<{ day: Date; anchor: number; y: number; moved: boolean; column: HTMLElement } | null>(null)
+  const SNAP = 15
+  const minutesAtY = (column: HTMLElement, clientY: number) => {
+    const offset = clientY - column.getBoundingClientRect().top
+    return Math.max(0, Math.min(24 * 60, (offset / hourRef.current) * 60))
+  }
+
+  const startDrag = (day: Date, event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || event.target !== event.currentTarget) return
+    const column = event.currentTarget
+    const anchor = Math.floor(minutesAtY(column, event.clientY) / SNAP) * SNAP
+    dragStart.current = { day, anchor, y: event.clientY, moved: false, column }
+    try {
+      column.setPointerCapture(event.pointerId)
+    } catch {
+      // Not capturable: the drag still works inside the column.
+    }
+  }
+
+  const moveDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragStart.current
+    if (!d) return
+    if (!d.moved && Math.abs(event.clientY - d.y) < 6) return
+    d.moved = true
+    const at = minutesAtY(d.column, event.clientY)
+    const from = at < d.anchor ? Math.floor(at / SNAP) * SNAP : d.anchor
+    const to = at < d.anchor ? d.anchor + SNAP : Math.max(d.anchor + SNAP, Math.ceil(at / SNAP) * SNAP)
+    setDrag((current) => (current && current.from === from && current.to === Math.min(to, 24 * 60) ? current : { day: d.day, from, to: Math.min(to, 24 * 60) }))
+  }
+
+  const endDrag = () => {
+    const d = dragStart.current
+    dragStart.current = null
+    if (!d || !d.moved || !drag) {
+      setDrag(null)
+      return
+    }
+    // The click that follows the drag must not create a second event.
+    swallowClick.current = true
+    const start = new Date(d.day)
+    start.setHours(0, drag.from, 0, 0)
+    const end = new Date(d.day)
+    end.setHours(0, drag.to, 0, 0)
+    const column = d.column.getBoundingClientRect()
+    onCreate(start, false, new DOMRect(column.left, column.top + (drag.from / 60) * hourRef.current, column.width, ((drag.to - drag.from) / 60) * hourRef.current), end)
+    setDrag(null)
+  }
+
   const createAt = (day: Date, event: MouseEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return
     if (swallowClick.current) {
@@ -249,7 +300,20 @@ export function TimeGrid({ days, events, onOpen, onCreate, ghost, onStep }: View
             const placed = layoutDay(events, day, hourHeight)
             const today = isSameDay(day, now)
             return (
-              <div key={day.toISOString()} className="day-column" onClick={(e) => createAt(day, e)} aria-label={formatLongDay(day)} role="group">
+              <div
+                key={day.toISOString()}
+                className={`day-column ${drag ? 'is-drawing' : ''}`}
+                onClick={(e) => createAt(day, e)}
+                onPointerDown={(e) => startDrag(day, e)}
+                onPointerMove={moveDrag}
+                onPointerUp={endDrag}
+                onPointerCancel={() => {
+                  dragStart.current = null
+                  setDrag(null)
+                }}
+                aria-label={formatLongDay(day)}
+                role="group"
+              >
                 {placed.map(({ event, top, height, column, columns }) => (
                   <button
                     key={event.id}
@@ -264,7 +328,11 @@ export function TimeGrid({ days, events, onOpen, onCreate, ghost, onStep }: View
                     {height >= 80 && event.location && <span className="event-block__where">{event.location}</span>}
                   </button>
                 ))}
-                {ghost && !ghost.allDay && <GhostBlock draft={ghost} day={day} hourHeight={hourHeight} />}
+                {drag && isSameDay(drag.day, day) ? (
+                  <DragBlock from={drag.from} to={drag.to} hourHeight={hourHeight} />
+                ) : (
+                  ghost && !ghost.allDay && <GhostBlock draft={ghost} day={day} hourHeight={hourHeight} />
+                )}
                 {today && <span className="now-line" style={{ top: (minutesIntoDay(now) / 60) * hourHeight }} aria-hidden="true" />}
               </div>
             )
@@ -421,7 +489,21 @@ export function Schedule({ from, days, events, onOpen, projects, onMore }: Omit<
   )
 }
 
-/** The slot being created, drawn dashed in the grid while the editor is open. */
+const clock = (minutes: number) => `${String(Math.floor(minutes / 60) % 24).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+
+/** The range being drawn with the mouse. */
+function DragBlock({ from, to, hourHeight }: { from: number; to: number; hourHeight: number }) {
+  return (
+    <span className="event-block event-block--ghost is-drawing" style={{ top: (from / 60) * hourHeight, height: ((to - from) / 60) * hourHeight, left: 4, width: 'calc(100% - 8px)' }} aria-hidden="true">
+      <span className="event-block__title">New event</span>
+      <span className="event-block__time">
+        {clock(from)} — {clock(to)}
+      </span>
+    </span>
+  )
+}
+
+/** The slot being created, shown in the grid while the editor is open. */
 function GhostBlock({ draft, day, hourHeight }: { draft: EventDraft; day: Date; hourHeight: number }) {
   const placed = layoutDay([{ ...draft, id: 'ghost', calendarId: '', canEdit: true }], day, hourHeight)[0]
   if (!placed) return null

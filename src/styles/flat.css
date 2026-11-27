@@ -412,3 +412,20 @@ kbd,
   color: var(--accent);
   font-weight: var(--weight-medium);
 }
+
+/* The event being created (while dragging, and while its form is open): grey, with grain. */
+.event-block.event-block--ghost {
+  background: var(--grain), var(--fill-hover);
+  color: var(--ink);
+  border: 0;
+  box-shadow: 0 0 0 1.5px var(--page);
+}
+
+.event-block.event-block--ghost .event-block__time {
+  color: var(--ink-muted);
+}
+
+.day-column.is-drawing {
+  cursor: ns-resize;
+  user-select: none;
+}

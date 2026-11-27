@@ -140,7 +140,7 @@ export function CalendarScreen() {
   const step = (direction: 1 | -1) => go({ date: stepFrom(view, cursor, direction) })
   const today = () => go({ date: startOfDay(new Date()) })
   const openDay = (day: Date) => go({ view: 'day', date: day })
-  const create = (at: Date, allDay = false, anchor?: DOMRect) => setEditing({ mode: 'create', draft: newDraft(at, { allDay }), anchor })
+  const create = (at: Date, allDay = false, anchor?: DOMRect, end?: Date) => setEditing({ mode: 'create', draft: newDraft(at, { allDay, end }), anchor })
   const open = (event: CalendarEvent, anchor?: DOMRect) => setEditing({ mode: 'edit', event, anchor })
 
   // Google Calendar's keys.
