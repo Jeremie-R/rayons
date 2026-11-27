@@ -640,3 +640,51 @@
 .settings__detail > * {
   flex: none;
 }
+
+/* A narrow conversation pane (tablets, or a wide list on desktop): the header works like the
+   phone one. Back arrow and buttons on top, the title below on up to two lines. A wide pane
+   keeps the title on one line beside the buttons. */
+@container (max-width: 760px) {
+  .thread .hero {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: 'back actions' 'title title' 'extra extra';
+    align-items: center;
+    gap: 8px 12px;
+    min-height: 0;
+    padding: 12px var(--gutter) 16px;
+  }
+
+  /* The back arrow, the title and the language hint become cells of the grid above. */
+  .thread .hero__title {
+    display: contents;
+  }
+
+  .thread .hero__back {
+    grid-area: back;
+  }
+
+  .thread .hero__heading {
+    grid-area: title;
+  }
+
+  .thread .hero__title > :not(.hero__back):not(.hero__heading) {
+    grid-area: extra;
+    justify-self: start;
+  }
+
+  .thread .hero__actions {
+    grid-area: actions;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .thread .hero__heading {
+    font-size: var(--text-lg);
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.3;
+  }
+}
