@@ -337,8 +337,15 @@
     width: 100%;
   }
 
+  /* The back arrow and the actions share the top row; the title below gets the full width. */
+  .hero__title {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
   .hero__actions {
-    grid-area: actions;
+    grid-column: 2;
+    grid-row: 1;
     gap: 16px;
     padding-top: 4px;
   }

@@ -15,6 +15,7 @@ import {
   MoreIcon,
   PlusIcon,
   ReplyIcon,
+  TagIcon,
   SpamIcon,
   TranslateIcon,
   TrashIcon,
@@ -157,18 +158,16 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
       value={thread.tag}
       onChange={(tag) => actions.setTag(thread, tag)}
       label="Tag this conversation"
-      trigger={(props) => (
-        <button
-          type="button"
-          {...props}
-          data-menu="tag"
-          data-tag={thread.tag ?? 'none'}
-          className={`tag tag--button ${thread.tag ? '' : 'tag--empty'}`}
-          {...tooltip('Tag', shortcuts ? 'l' : undefined)}
-        >
-          {thread.tag ? tagLabel(thread.tag) : '+ tag'}
-        </button>
-      )}
+      trigger={(props) =>
+        // No tag yet: a tag icon among the actions. Once tagged, the tag itself takes its place.
+        thread.tag ? (
+          <button type="button" {...props} data-menu="tag" data-tag={thread.tag} className="tag tag--button" {...tooltip('Change tag', shortcuts ? 'l' : undefined)}>
+            {tagLabel(thread.tag)}
+          </button>
+        ) : (
+          <IconButton {...props} data-menu="tag" icon={TagIcon} label="Add a tag" shortcut={shortcuts ? 'l' : undefined} size={24} />
+        )
+      }
     />
   )
 
@@ -265,7 +264,6 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
           <h1 className="hero__heading" data-tooltip={thread.subject} data-tooltip-truncated="">
             {thread.subject}
           </h1>
-          {!mobile && tagTrigger}
           {foreign && !translating && (
             <button type="button" className="language-hint" onClick={() => setTranslating(true)} {...tooltip(`Translate to ${languageName(target)}`, shortcuts ? 't' : undefined)}>
               <TranslateIcon size={14} />
@@ -274,6 +272,7 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
           )}
         </div>
         <div className="hero__actions" role="toolbar" aria-label="Conversation actions">
+          {tagTrigger}
           {!embedded && projectButton}
           {!compact && calendarButton}
           {!compact && <IconButton icon={TranslateIcon} label={translating ? 'Hide translation' : 'Translate'} shortcut="t" size={24} active={translating} onClick={() => setTranslating((on) => !on)} />}
@@ -282,7 +281,6 @@ function LoadedThread({ thread, onBack, embedded, onGone, markRead }: { thread: 
             {secondary}
           </Menu>
         </div>
-        {mobile && <div className="hero__tags">{tagTrigger}</div>}
       </header>
 
       <div className="thread__scroll" ref={scroller}>
