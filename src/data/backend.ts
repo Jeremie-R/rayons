@@ -45,6 +45,8 @@ export interface Backend {
   /** Copies Google Contacts (and "other contacts", the people Gmail suggests) into Rayons. */
   importContacts(): Promise<{ count: number }>
   forgetContact(email: string): Promise<void>
+  /** Deletes every saved contact (Google ones come back with another import). */
+  clearContacts(): Promise<void>
 
   /** Translation through a service (when the browser can't translate on the device). */
   translate(texts: string[], target: string, format?: 'text' | 'html'): Promise<{ text: string; source: string }[]>

@@ -335,6 +335,11 @@ export function createDemoBackend(): Backend {
       return done(undefined)
     },
 
+    async clearContacts() {
+      data.contacts = []
+      return done(undefined)
+    },
+
     async translate() {
       throw new Error('In the demo, translation only works in Google Chrome (on the device). Signed in, a translation service covers other browsers.')
     },

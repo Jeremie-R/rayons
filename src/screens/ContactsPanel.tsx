@@ -51,6 +51,19 @@ export function ContactsPanel() {
     if (takeSignInFollowUp() === 'import-contacts') void importFromGoogle()
   }, [])
 
+  const clearAll = async () => {
+    if (!confirm(`Delete all ${contacts.length} contacts from Rayons? Your Google Contacts are not touched; you can import them again.`)) return
+    updateCached<Contact[]>(keys.contacts, () => [])
+    try {
+      await backend.clearContacts()
+      notify('Contacts cleared')
+    } catch (error) {
+      notify(errorText(error), { tone: 'error' })
+    } finally {
+      invalidate(keys.contacts)
+    }
+  }
+
   const forget = async (contact: Contact) => {
     updateCached<Contact[]>(keys.contacts, (data) => data.filter((c) => c.email !== contact.email))
     try {
@@ -76,6 +89,11 @@ export function ContactsPanel() {
           {contacts.length} {contacts.length === 1 ? 'person' : 'people'}
           {fromGoogle ? `, ${fromGoogle} from Google` : ''}
         </span>
+        {contacts.length > 0 && (
+          <Button variant="ghost" className="panel__end" onClick={clearAll}>
+            Clear contacts
+          </Button>
+        )}
       </div>
       {contacts.length > 0 && (
         <>

@@ -173,6 +173,11 @@ export function createLiveBackend(userId: string, account: Account): Backend {
       unwrap(await db.from('contacts').update({ hidden: true }).eq('email', email.toLowerCase()).select('email'))
     },
 
+    async clearContacts() {
+      // Row-level security limits this to your own contacts; a filter is required to delete.
+      unwrap(await db.from('contacts').delete().eq('user_id', userId).select('email'))
+    },
+
     translate: (texts, target, format = 'text') => api<{ text: string; source: string }[]>('translate', { texts, target, format }),
 
     listCalendars: () => calendar<CalendarInfo[]>({ action: 'listCalendars' }),
