@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { EventDialog, newDraft, type EventEditing } from '../calendar/EventDialog'
 import { MonthGrid, Schedule, TimeGrid, YearGrid } from '../calendar/views'
-import { AddEventIcon, CloseIcon, FilterIcon, NextIcon, PrevIcon, SearchIcon, SettingsIcon } from '../components/icons'
+import { AddEventIcon, CloseIcon, FilterIcon, FolderIcon, NextIcon, PrevIcon, SearchIcon, SettingsIcon } from '../components/icons'
 import { Menu, MenuHeading, MenuItem, MenuSeparator } from '../components/overlays'
 import { ErrorNote, IconButton, Segmented, TagDot } from '../components/ui'
 import { keys, prefetch, useBackend, useQuery } from '../data/store'
@@ -81,6 +81,7 @@ export function CalendarScreen() {
     setEditingState(null)
   }, [])
   const [tagFilter, setTagFilter] = useState<Set<TagId | 'none'>>(new Set())
+  const [projectFilter, setProjectFilter] = useState<Set<string>>(new Set())
   const [searching, setSearching] = useState(false)
   const [search, setSearch] = useState('')
   const [hidden, setHidden] = useState<string[]>(readHidden)
@@ -115,6 +116,7 @@ export function CalendarScreen() {
   }, [view, dateKey(cursor), scheduleDays, mobile, backend])
   const { data: calendars } = useQuery(keys.calendars, () => backend.listCalendars())
   const { data: projects } = useQuery(keys.projects, () => backend.listProjects())
+  const activeProjects = (projects ?? []).filter((p) => p.status === 'active').sort((a, b) => a.name.localeCompare(b.name))
 
   const events = useMemo(() => {
     const words = search.trim().toLowerCase()
@@ -122,9 +124,18 @@ export function CalendarScreen() {
       (event) =>
         !hidden.includes(event.calendarId) &&
         (tagFilter.size === 0 || tagFilter.has(event.tag ?? 'none')) &&
+        (projectFilter.size === 0 || (!!event.projectId && projectFilter.has(event.projectId))) &&
         (!words || `${event.title} ${event.location} ${event.description}`.toLowerCase().includes(words)),
     )
-  }, [data, hidden, tagFilter, search])
+  }, [data, hidden, tagFilter, projectFilter, search])
+  const filtering = tagFilter.size > 0 || projectFilter.size > 0
+  const toggleProject = (id: string) =>
+    setProjectFilter((set) => {
+      const next = new Set(set)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const step = (direction: 1 | -1) => go({ date: stepFrom(view, cursor, direction) })
   const today = () => go({ date: startOfDay(new Date()) })
@@ -222,10 +233,10 @@ export function CalendarScreen() {
           ) : (
             <IconButton icon={SearchIcon} label="Search events" shortcut="/" onClick={() => setSearching(true)} />
           )}
-          <Menu label="Show tags" trigger={(props) => <IconButton {...props} icon={FilterIcon} label="Filter by tag" active={tagFilter.size > 0} />}>
+          <Menu label="Filter" trigger={(props) => <IconButton {...props} icon={FilterIcon} label="Filter by tag or project" active={filtering} />}>
             {() => (
               <>
-                <MenuHeading>Show only</MenuHeading>
+                <MenuHeading>Tags</MenuHeading>
                 {[...TAGS, 'none' as const].map((tag) => (
                   <MenuItem key={tag} checked={tagFilter.has(tag)} onSelect={() => toggleTag(tag)}>
                     <span className="menu__tag">
@@ -234,16 +245,34 @@ export function CalendarScreen() {
                     </span>
                   </MenuItem>
                 ))}
-                {tagFilter.size > 0 && (
+                {activeProjects.length > 0 && (
                   <>
                     <MenuSeparator />
-                    <MenuItem onSelect={() => setTagFilter(new Set())}>Show everything</MenuItem>
+                    <MenuHeading>Projects</MenuHeading>
+                    {activeProjects.map((project) => (
+                      <MenuItem key={project.id} icon={FolderIcon} checked={projectFilter.has(project.id)} onSelect={() => toggleProject(project.id)}>
+                        {project.name}
+                      </MenuItem>
+                    ))}
+                  </>
+                )}
+                {filtering && (
+                  <>
+                    <MenuSeparator />
+                    <MenuItem
+                      onSelect={() => {
+                        setTagFilter(new Set())
+                        setProjectFilter(new Set())
+                      }}
+                    >
+                      Show everything
+                    </MenuItem>
                   </>
                 )}
               </>
             )}
           </Menu>
-          <Menu label="Calendars" trigger={(props) => <IconButton {...props} icon={SettingsIcon} label="Calendars" active={hidden.length > 0} />}>
+          <Menu label="Calendars" trigger={(props) => <IconButton {...props} icon={SettingsIcon} label="Calendars" />}>
             {() => (
               <>
                 <MenuHeading>Calendars shown</MenuHeading>
