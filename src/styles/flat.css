@@ -1,0 +1,391 @@
+/*
+ * Exploration (branch explore/flat-ui): a flatter Rayons that sits with the illustrations.
+ *
+ * - One colour per tag, with black text on it, like the drawings' flat shapes and black ink.
+ *   No outlines and no pale tint with coloured text (that pairing is what "vibrates").
+ * - A light print grain on coloured fills, as in the illustrations.
+ * - Two tones for everything else: the cobalt (white on it) for the main action and "on"
+ *   states; greys (black on them) for the rest. Fields and secondary buttons are grey fills
+ *   instead of outlined boxes; lines only where they separate rows.
+ * Everything is in this file, loaded last, so it is easy to keep, tweak or drop.
+ */
+
+:root {
+  --ink: #17161a;
+  --ink-muted: #6e6c72;
+  --line: #ececef;
+  --line-strong: #dcdce1;
+  --hover: #f6f6f8;
+  --selected: #efeff2;
+  --fill: #f2f2f4;
+  --fill-hover: #e8e8ec;
+  --toggle: #efeff2;
+
+  --accent: #2b3ae0;
+  --accent-strong: #2230c2;
+  /* No tinted backgrounds: "on" is the solid colour, everything else grey. */
+  --accent-bg: var(--fill);
+  --accent-bg-hover: var(--fill-hover);
+  --accent-line: rgba(43, 58, 224, 0.5);
+
+  --on-fill: #17161a;
+  --radius-sm: 8px;
+  --radius: 10px;
+
+  --shadow-pop: 0 16px 40px rgba(20, 20, 30, 0.14), 0 2px 6px rgba(20, 20, 30, 0.06);
+  --focus: 0 0 0 2px var(--page), 0 0 0 4px var(--accent);
+
+  /* White specks, like a risograph print. Laid over coloured fills. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 -3.4 1.45'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+:root[data-theme='dark'] {
+  --ink: #f1f1f3;
+  --ink-muted: #a3a2a8;
+  --ink-inverse: #141416;
+  --line: #26262b;
+  --line-strong: #36363d;
+  --page: #141416;
+  --raised: #202024;
+  --hover: #1b1b1f;
+  --selected: #232328;
+  --fill: #222226;
+  --fill-hover: #2b2b31;
+  --toggle: #222226;
+
+  --accent: #6d7cff;
+  --accent-strong: #8c98ff;
+  --accent-line: rgba(109, 124, 255, 0.55);
+
+  --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Tags: one flat colour each, black on it (8:1 or more). The same fills in dark mode. */
+[data-tag] {
+  --tag-fill: #e4e4e8;
+}
+[data-tag='admin'] {
+  --tag-fill: #ff8dbb;
+}
+[data-tag='event'] {
+  --tag-fill: #a8b4f8;
+}
+[data-tag='buy'] {
+  --tag-fill: #ff9e82;
+}
+[data-tag='knowledge'] {
+  --tag-fill: #86d4b8;
+}
+:root[data-theme='dark'] [data-tag] {
+  --tag-fill: #d9dae0;
+}
+:root[data-theme='dark'] [data-tag='admin'] {
+  --tag-fill: #f0a0c4;
+}
+:root[data-theme='dark'] [data-tag='event'] {
+  --tag-fill: #9eabef;
+}
+:root[data-theme='dark'] [data-tag='buy'] {
+  --tag-fill: #f29a80;
+}
+:root[data-theme='dark'] [data-tag='knowledge'] {
+  --tag-fill: #7fcbb0;
+}
+
+/* Anything that used "pale tint + coloured text" now uses the fill and black text. */
+[data-tag] {
+  --tag-bg: var(--tag-fill);
+  --tag-ink: var(--on-fill);
+}
+
+.tag,
+.banner,
+.event-block,
+.month-event.is-banner,
+.project-strip,
+.project-card {
+  background: var(--grain), var(--tag-fill);
+  color: var(--on-fill);
+  border: 0;
+  box-shadow: none;
+}
+
+.tag {
+  border-radius: var(--radius-pill);
+  padding: 0 12px;
+}
+
+.tag--button:hover {
+  box-shadow: none;
+  filter: brightness(0.96);
+}
+
+/* A chosen filter chip: black, white text. "All" and "no tag" are grey until chosen. */
+.tag.is-active,
+.tag--all.is-active {
+  background: var(--ink);
+  color: var(--ink-inverse);
+}
+
+.tag--all {
+  background: var(--fill);
+  box-shadow: none;
+}
+
+.tag--empty {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  color: var(--ink-muted);
+}
+
+/* Dots and bars show the colour itself. */
+.tag-dot,
+.month-event::before,
+.schedule__bar {
+  background: var(--tag-fill);
+}
+
+.tag-dot {
+  width: 9px;
+  height: 9px;
+}
+
+/* Calendar ------------------------------------------------------------------------------- */
+
+.event-block {
+  padding: 5px 8px;
+  border-radius: 6px;
+  /* A sliver of page between blocks that touch, instead of an outline. */
+  box-shadow: 0 0 0 1.5px var(--page);
+}
+
+.event-block::before {
+  display: none;
+}
+
+.event-block:hover {
+  box-shadow: 0 0 0 1.5px var(--page), 0 6px 16px rgba(20, 20, 30, 0.16);
+}
+
+.event-block__time,
+.event-block__where {
+  color: color-mix(in srgb, var(--on-fill) 72%, var(--tag-fill));
+}
+
+.banner {
+  border-radius: 6px;
+}
+
+.month-event:hover,
+.schedule__event:hover {
+  background: var(--hover);
+}
+
+/* Surfaces and cards: grey fills, no outlines ---------------------------------------------- */
+
+.event-card,
+.file,
+.side-card,
+.rail-event {
+  border: 0;
+  background: var(--fill);
+}
+
+.event-card:hover,
+.file:hover,
+.rail-event:hover {
+  background: var(--fill-hover);
+}
+
+.project-strip:hover,
+.project-card:hover {
+  box-shadow: none;
+  filter: brightness(0.97);
+}
+
+.composer {
+  border: 0;
+  box-shadow: none;
+  background: var(--fill);
+}
+
+.composer .recipients {
+  border-bottom-color: var(--line-strong);
+}
+
+.menu,
+.suggestions,
+.command,
+.dialog {
+  border: 0;
+}
+
+/* Buttons: one solid colour for the main action, grey for the rest ----------------------- */
+
+.button--outline {
+  background: var(--fill);
+  border-color: transparent;
+}
+
+.button--outline:hover:not(:disabled) {
+  background: var(--fill-hover);
+  border-color: transparent;
+}
+
+.button--accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.icon-button--round {
+  background: var(--accent);
+  color: #fff;
+}
+
+.icon-button--round:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+/* "On" (a filter in use, translation shown): the solid colour. */
+.icon-button--plain.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.pill-button {
+  background: var(--ink);
+  color: var(--ink-inverse);
+}
+
+.pill-button:hover {
+  background: color-mix(in srgb, var(--ink) 85%, var(--page));
+}
+
+.chip-button,
+.recipient-chip,
+.quoted-toggle,
+.language-hint,
+kbd,
+.command__hint,
+.command__keys kbd,
+.command__footer kbd {
+  border: 0;
+  background: var(--fill);
+}
+
+.chip-button.is-active {
+  background: var(--ink);
+  color: var(--ink-inverse);
+}
+
+.count-badge {
+  background: var(--accent);
+  color: #fff;
+}
+
+.status-pill.is-live {
+  background: var(--grain), #86d4b8;
+  color: var(--on-fill);
+}
+
+/* Fields: grey fills, a cobalt ring when you're in one ------------------------------------- */
+
+.field__input,
+.select,
+.search,
+.contacts-search {
+  border-color: transparent;
+  background: var(--fill);
+}
+
+.field__input:hover,
+.select:hover:not(:disabled),
+.search:hover,
+.contacts-search:hover {
+  border-color: transparent;
+  background: var(--fill-hover);
+}
+
+.field__input:focus-visible,
+.select:focus-visible,
+.select[aria-expanded='true'],
+.search:focus-within,
+.contacts-search:focus-within {
+  border-color: transparent;
+  background: var(--page);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.field__input--title {
+  background: transparent;
+}
+
+.notes:focus-within {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Selection: grey, no coloured bar -------------------------------------------------------- */
+
+.thread-row.is-selected,
+.project-row.is-selected,
+.settings-row.is-selected {
+  background: var(--selected);
+  box-shadow: none;
+}
+
+.settings-row.is-selected svg {
+  color: var(--ink);
+}
+
+.rail__item.active {
+  background: var(--ink);
+  color: var(--ink-inverse);
+}
+
+.menu__item:focus-visible,
+.command__item.is-active {
+  background: var(--fill);
+}
+
+.command__item.is-active svg {
+  color: var(--ink);
+}
+
+.month-picker__day.is-today {
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+  color: var(--ink);
+}
+
+.segmented__item.is-active {
+  box-shadow: none;
+}
+
+.file-chip {
+  border: 0;
+  background: var(--fill);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.file-chip:hover {
+  background: var(--fill-hover);
+}
+
+.file-chip svg {
+  color: var(--ink-muted);
+}
+
+/* Secondary text on a coloured fill: a lighter black, not grey (grey on colour is too faint). */
+.project-strip .muted,
+.project-card .muted,
+.project-strip__next,
+.project-card__notes {
+  color: color-mix(in srgb, var(--on-fill) 72%, var(--tag-fill));
+}
+
+.project-strip__text,
+.project-strip .medium,
+.project-card .medium {
+  color: var(--on-fill);
+}
