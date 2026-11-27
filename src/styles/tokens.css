@@ -1,5 +1,7 @@
 /*
  * Design tokens, from the Figma file "side-project".
+ * The accent moved from the file's purple to the illustrations' cobalt blue, and the tags with it
+ * (admin pink, event violet, buy coral, knowledge teal; untagged takes the accent).
  * Changes from the file, for contrast (WCAG AA):
  * - muted text #797979 → #6b6b6b (4.4:1 → 5.3:1 on white; 16px text needs 4.5:1)
  * - accent and tag backgrounds a step deeper, so chips and active states read as shapes
@@ -27,28 +29,28 @@
   --hover: #f8fafb;
   --selected: #f2f4f7;
   --toggle: #eaeaea;
-  --scrim: rgba(30, 24, 48, 0.32);
+  --scrim: rgba(18, 22, 48, 0.32);
 
-  --accent: #493886;
-  --accent-strong: #3a2b70;
-  --accent-bg: #f3eafe;
-  --accent-bg-hover: #e9dcfc;
-  --accent-line: rgba(73, 56, 134, 0.28);
+  --accent: #2b3ae0;
+  --accent-strong: #1f2bb5;
+  --accent-bg: #eaedfe;
+  --accent-bg-hover: #dce1fd;
+  --accent-line: rgba(43, 58, 224, 0.28);
   --danger: #b42318;
   --danger-bg: #fef1f0;
   --now: #d92d20;
 
   /* Tags: ink for text, bg for fills, line for hairlines. "none" is untagged. */
-  --tag-admin: #921b5a;
-  --tag-admin-bg: #fbeaf4;
-  --tag-event: #073c78;
-  --tag-event-bg: #e5f2fc;
-  --tag-buy: #913114;
-  --tag-buy-bg: #fdede2;
-  --tag-knowledge: #0c4e2f;
-  --tag-knowledge-bg: #e1f5e8;
-  --tag-none: #493886;
-  --tag-none-bg: #f3eafe;
+  --tag-admin: #b0176a;
+  --tag-admin-bg: #fde8f2;
+  --tag-event: #5b2fc7;
+  --tag-event-bg: #efe9fd;
+  --tag-buy: #b23a12;
+  --tag-buy-bg: #ffebe2;
+  --tag-knowledge: #0d6b52;
+  --tag-knowledge-bg: #e1f4ec;
+  --tag-none: #2b3ae0;
+  --tag-none-bg: #eaedfe;
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -67,54 +69,54 @@
   --raised: #ffffff;
   --toast-bg: #2e2e2e;
   --toast-ink: #ffffff;
-  --toast-action: #d9c8ff;
+  --toast-action: #b9c3ff;
   --paper: #ffffff;
 
-  --shadow-pop: 0 12px 32px rgba(30, 24, 48, 0.14), 0 2px 6px rgba(30, 24, 48, 0.08);
+  --shadow-pop: 0 12px 32px rgba(18, 22, 48, 0.14), 0 2px 6px rgba(18, 22, 48, 0.08);
   --focus: 0 0 0 2px var(--page), 0 0 0 4px var(--accent);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 /*
- * Dark. Same structure, lighter inks on a near-black with a hint of the lavender accent.
- * Every text pair keeps at least 4.5:1 (muted #a8a4b3 on #17151c is 7.6:1).
+ * Dark. Same structure, lighter inks on a near-black with a hint of the blue accent.
+ * Every text pair keeps at least 4.5:1 (muted #a6aab8 on #14151b is 7.8:1).
  */
 :root[data-theme='dark'] {
-  --ink: #ecebef;
-  --ink-muted: #a8a4b3;
-  --ink-inverse: #17151c;
-  --line: #2e2b36;
-  --line-strong: #423e4c;
-  --page: #17151c;
-  --hover: #1e1c24;
-  --selected: #25222d;
-  --toggle: #26232e;
-  --raised: #322e3b;
+  --ink: #eceef3;
+  --ink-muted: #a6aab8;
+  --ink-inverse: #14151b;
+  --line: #2b2e39;
+  --line-strong: #3e4250;
+  --page: #14151b;
+  --hover: #1b1d25;
+  --selected: #22252f;
+  --toggle: #23262f;
+  --raised: #2a2d38;
   --scrim: rgba(0, 0, 0, 0.55);
 
-  --accent: #bba9ff;
-  --accent-strong: #d3c7ff;
-  --accent-bg: #2b2546;
-  --accent-bg-hover: #372f5a;
-  --accent-line: rgba(187, 169, 255, 0.35);
+  --accent: #8f9dff;
+  --accent-strong: #b3bcff;
+  --accent-bg: #1f2547;
+  --accent-bg-hover: #283063;
+  --accent-line: rgba(143, 157, 255, 0.35);
   --danger: #ff8d84;
   --danger-bg: #3a1e1f;
   --now: #ff6b5e;
 
-  --tag-admin: #f39ac8;
-  --tag-admin-bg: #3a1d2d;
-  --tag-event: #8ec5ff;
-  --tag-event-bg: #16293f;
-  --tag-buy: #ffae8a;
-  --tag-buy-bg: #3a2218;
-  --tag-knowledge: #82dca8;
-  --tag-knowledge-bg: #15301f;
-  --tag-none: #bba9ff;
-  --tag-none-bg: #2b2546;
+  --tag-admin: #ff8fc4;
+  --tag-admin-bg: #3d1a2e;
+  --tag-event: #b9a2ff;
+  --tag-event-bg: #2a2148;
+  --tag-buy: #ffa283;
+  --tag-buy-bg: #3d2219;
+  --tag-knowledge: #6fdbb3;
+  --tag-knowledge-bg: #12342a;
+  --tag-none: #8f9dff;
+  --tag-none-bg: #1f2547;
 
-  --toast-bg: #ecebef;
-  --toast-ink: #17151c;
-  --toast-action: #493886;
+  --toast-bg: #eceef3;
+  --toast-ink: #14151b;
+  --toast-action: #2b3ae0;
   --paper: #ffffff;
 
   --shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);

@@ -1,14 +1,18 @@
 import { useAuth } from '../auth/AuthProvider'
 import { Logo } from '../components/Logo'
 import { Button } from '../components/ui'
+import { WelcomeArt } from '../components/WelcomeArt'
+import { useIsMobile } from '../lib/hooks'
 
 export function Welcome() {
   const { state, signIn, startDemo, signInError, signOut } = useAuth()
   const needsGoogle = state.status === 'needsGoogle'
+  const mobile = useIsMobile()
   return (
     <main className="welcome">
+      <WelcomeArt compact={mobile} />
       <div className="welcome__card">
-        <Logo size={56} />
+        <Logo size={88} />
         <h1>Rayons</h1>
         <p className="welcome__tagline">Mail and calendar, organised around your projects.</p>
         {needsGoogle ? (

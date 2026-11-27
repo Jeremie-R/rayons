@@ -270,7 +270,7 @@
 }
 
 .event-block:hover {
-  box-shadow: 0 4px 12px rgba(30, 24, 48, 0.12);
+  box-shadow: 0 4px 12px rgba(18, 22, 48, 0.12);
   z-index: 2;
 }
 

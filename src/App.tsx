@@ -35,7 +35,7 @@ export function App() {
             <Route path="calendar" element={<CalendarScreen />} />
             <Route path="projects/:projectId?" element={<ProjectsScreen />} />
             <Route path="projects/:projectId/mail/:threadId" element={<ProjectsScreen />} />
-            <Route path="you" element={<YouScreen />} />
+            <Route path="you/:section?" element={<YouScreen />} />
             <Route path="*" element={<Navigate to="/inbox" replace />} />
           </Route>
         </Routes>

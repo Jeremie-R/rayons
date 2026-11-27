@@ -345,7 +345,7 @@ export function createDemoBackend(): Backend {
     },
 
     async listCalendars() {
-      return [{ id: 'primary', name: DEMO_ACCOUNT.email, color: '#493886', primary: true, canEdit: true }]
+      return [{ id: 'primary', name: DEMO_ACCOUNT.email, color: '#2b3ae0', primary: true, canEdit: true }]
     },
 
     async listEvents(from, to, options) {

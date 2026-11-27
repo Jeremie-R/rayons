@@ -18,7 +18,7 @@ const ACCOUNT = { to: '/you', label: 'You', icon: UserIcon, keys: 'g s' }
 export function Shell({ banner }: { banner?: ReactNode }) {
   const mobile = useIsMobile()
   const { pathname } = useLocation()
-  const detail = /^\/(inbox|projects)\/[^/]+/.test(pathname)
+  const detail = /^\/(inbox|projects|you)\/[^/]+/.test(pathname)
 
   return (
     <div className={`shell ${mobile ? 'shell--mobile' : ''} ${mobile && detail ? 'shell--detail' : ''}`}>

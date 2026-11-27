@@ -76,7 +76,6 @@ export function ContactsPanel() {
 
   return (
     <section className="panel">
-      <h2 className="panel__title">Contacts</h2>
       <p className="muted">
         When you type in To, Cc or Bcc, Rayons suggests people from your Google contacts and people from mail you open or write. They are kept in your Rayons
         account, not shared.
