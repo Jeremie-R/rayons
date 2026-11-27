@@ -58,22 +58,44 @@
   flex-direction: column;
 }
 
-/* Phone navigation: a rounded bar resting above the bottom edge. The current section is a
-   solid pill (black, white on it), like the desktop rail. */
+/* Phone navigation: a rounded bar floating over the content, which scrolls on underneath. The
+   current section is a solid pill (black, white on it), like the desktop rail. */
 .tabbar {
-  flex: 0 0 auto;
-  padding: 6px 12px calc(10px + var(--safe-bottom));
-  background: var(--page);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 0 16px calc(12px + var(--safe-bottom));
+  pointer-events: none;
 }
 
 .tabbar__bar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  height: calc(var(--tabbar) - 8px);
+  height: calc(var(--tabbar) - 4px);
   padding: 5px;
-  border-radius: 24px;
-  background: var(--fill, var(--selected));
+  border-radius: 26px;
+  /* The same grey as before, a little see-through so the content shows blurred behind it. */
+  background: color-mix(in srgb, var(--fill-hover, var(--selected)) 88%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--ink) 12%, transparent), 0 10px 30px rgba(20, 20, 30, 0.16);
+  pointer-events: auto;
+}
+
+/* Room under the last row of anything that scrolls, so it can come out from under the bar. */
+.shell--mobile:not(.shell--detail) {
+  --nav-space: calc(var(--tabbar) + 24px + var(--safe-bottom));
+}
+
+.shell--mobile:not(.shell--detail) :is(.list-pane__body, .page, .time-grid__body, .schedule, .year-grid) {
+  padding-bottom: var(--nav-space);
+}
+
+.shell--mobile:not(.shell--detail) .month-grid {
+  margin-bottom: var(--nav-space);
 }
 
 .tabbar__item {
@@ -82,7 +104,7 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  border-radius: 19px;
+  border-radius: 21px;
   color: var(--ink-muted);
   text-decoration: none;
   font-size: 11px;
