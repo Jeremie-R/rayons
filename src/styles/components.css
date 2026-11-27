@@ -999,8 +999,16 @@ body.is-resizing iframe {
   object-fit: cover;
 }
 
-.avatar > img.is-logo {
-  padding: 6px;
+/* A logo on its own edge colour: shown whole, a little inset, on that colour. */
+.avatar > img.is-logo.is-on-colour {
+  object-fit: contain;
+  padding: 3px;
+  background: transparent;
+}
+
+/* Any other logo fills the circle; a little cropping is fine. */
+.avatar > img.is-logo:not(.is-on-colour) {
+  object-fit: cover;
 }
 
 /* Pickers: select, date and time (components/fields.tsx) ---------------------------------- */

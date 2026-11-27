@@ -1,6 +1,6 @@
 import { useEffect, useState, type ButtonHTMLAttributes, type ComponentType, type ReactNode, type SVGProps } from 'react'
 import { TAGS, type Person, type Tag, type TagId } from '../lib/types'
-import { pictureFor } from '../lib/avatars'
+import { edgeColour, pictureFor } from '../lib/avatars'
 import { Illustration, type IllustrationKind } from './Illustration'
 import { tagLabel } from '../lib/tags'
 
@@ -94,15 +94,33 @@ export function TagDots({ tags }: { tags: TagId[] }) {
 }
 
 /** A photo or company logo when there is one (see lib/avatars), over the first letter. */
+/**
+ * A photo or company logo when there is one (see lib/avatars), over the first letter. A logo
+ * whose edge is one colour is set on that colour; any other logo fills the circle.
+ */
 export function Avatar({ person, self, photo }: { person: Person; self?: boolean; photo?: string | null }) {
   const letter = (person.name || person.email).trim().charAt(0).toUpperCase() || '?'
   const src = photo ?? (self ? null : pictureFor(person.email))
-  const [shown, setShown] = useState<string | null>(null)
+  const logo = !!src?.startsWith('/api/logo')
+  const [shown, setShown] = useState<{ src: string; fill: string | null } | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
+  const ready = !!src && shown?.src === src
+  const fill = ready ? shown.fill : null
   return (
-    <span className={`avatar ${self ? 'avatar--self' : ''} ${src && shown === src ? 'has-picture' : ''}`} aria-hidden="true">
+    <span className={`avatar ${self ? 'avatar--self' : ''} ${ready ? 'has-picture' : ''}`} style={fill ? { background: fill, borderColor: 'transparent' } : undefined} aria-hidden="true">
       {letter}
-      {src && failed !== src && <img src={src} alt="" className={src.startsWith('/api/logo') ? 'is-logo' : ''} loading="lazy" decoding="async" referrerPolicy="no-referrer" onLoad={() => setShown(src)} onError={() => setFailed(src)} />}
+      {src && failed !== src && (
+        <img
+          src={src}
+          alt=""
+          className={logo ? (fill ? 'is-logo is-on-colour' : 'is-logo') : ''}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={(event) => setShown({ src, fill: logo ? edgeColour(event.currentTarget) : null })}
+          onError={() => setFailed(src)}
+        />
+      )}
     </span>
   )
 }

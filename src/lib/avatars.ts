@@ -26,3 +26,55 @@ export function pictureFor(email: string): string | null {
   if (!domain || PERSONAL.has(domain) || /(^|\.)(example\.(com|org|net)|[a-z0-9-]+\.(example|test|invalid|localhost|local))$/.test(domain) || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) return null
   return `/api/logo?domain=${encodeURIComponent(domain)}`
 }
+
+const edgeColours = new Map<string, string | null>()
+
+/**
+ * The colour around a logo's edge, when most of the edge is one opaque colour (a favicon on a
+ * purple square, say). The circle is filled with it so the logo doesn't float on white.
+ * Logos come from our own /api/logo, so the canvas can read them. Measured once per logo.
+ */
+export function edgeColour(image: HTMLImageElement): string | null {
+  const key = image.currentSrc || image.src
+  if (edgeColours.has(key)) return edgeColours.get(key)!
+  let colour: string | null = null
+  try {
+    const size = 24
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = size
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    if (context) {
+      context.drawImage(image, 0, 0, size, size)
+      const { data } = context.getImageData(0, 0, size, size)
+      // Pixels just inside the border (skipping rounded or anti-aliased corners), grouped by
+      // rough colour.
+      const groups = new Map<number, { n: number; r: number; g: number; b: number }>()
+      let total = 0
+      for (let i = 2; i < size - 2; i++) {
+        for (const [x, y] of [[i, 1], [i, size - 2], [1, i], [size - 2, i]]) {
+          const at = (y * size + x) * 4
+          total++
+          if (data[at + 3] < 220) continue
+          const [r, g, b] = [data[at], data[at + 1], data[at + 2]]
+          const bucket = ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5)
+          const group = groups.get(bucket) ?? { n: 0, r: 0, g: 0, b: 0 }
+          group.n++
+          group.r += r
+          group.g += g
+          group.b += b
+          groups.set(bucket, group)
+        }
+      }
+      const best = [...groups.values()].sort((a, b) => b.n - a.n)[0]
+      if (best && best.n >= total * 0.6) {
+        const [r, g, b] = [best.r, best.g, best.b].map((sum) => Math.round(sum / best.n))
+        // White edges: the usual white circle already fits.
+        if (Math.min(r, g, b) < 235) colour = `rgb(${r} ${g} ${b})`
+      }
+    }
+  } catch {
+    // Unreadable image: keep the default look.
+  }
+  edgeColours.set(key, colour)
+  return colour
+}
