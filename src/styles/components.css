@@ -725,7 +725,7 @@ select.field__input {
 }
 
 .shell--mobile:not(.shell--detail) ~ .toasts {
-  bottom: calc(var(--tabbar) + 16px + var(--safe-bottom));
+  bottom: calc(var(--tabbar) + 28px + var(--safe-bottom));
 }
 
 .toast {

@@ -37,6 +37,8 @@
 
   /* White specks, like a risograph print. Laid over coloured fills. */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 -3.4 1.45'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  /* The same specks, mostly transparent: for dark and saturated fills, where full white is too loud. */
+  --grain-soft: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 -3.4 1.45'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.32'/%3E%3C/svg%3E");
 }
 
 :root[data-theme='dark'] {
@@ -400,7 +402,7 @@ kbd,
 .tag--all.is-active,
 .chip-button.is-active,
 .count-badge {
-  background-image: var(--grain);
+  background-image: var(--grain-soft);
 }
 
 /* Today: a soft grey circle and the date in the accent, rather than a solid blue disc. */
@@ -428,4 +430,24 @@ kbd,
 .day-column.is-drawing {
   cursor: ns-resize;
   user-select: none;
+}
+
+/* Hover keeps the grain and the "on" colour; only the shade moves (as on the tags). */
+.button--accent:hover:not(:disabled),
+.icon-button--round:hover:not(:disabled),
+.icon-button--plain.is-active:hover:not(:disabled),
+.count-badge:hover {
+  background: var(--grain-soft), var(--accent-strong);
+  color: #fff;
+}
+
+.pill-button:hover,
+.rail__item.active:hover,
+.tabbar__item.active:hover,
+.tag.is-active:hover,
+.tag--all.is-active:hover,
+.chip-button.is-active:hover {
+  background: var(--grain-soft), color-mix(in srgb, var(--ink) 84%, var(--page));
+  color: var(--ink-inverse);
+  filter: none;
 }

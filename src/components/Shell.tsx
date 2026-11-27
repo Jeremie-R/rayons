@@ -41,12 +41,14 @@ export function Shell({ banner }: { banner?: ReactNode }) {
       <GlobalShortcuts />
       {mobile && !detail && (
         <nav className="tabbar" aria-label="Main">
-          {[...NAV, ACCOUNT].map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} className="tabbar__item">
-              <Icon size={20} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
+          <div className="tabbar__bar">
+            {[...NAV, ACCOUNT].map(({ to, label, icon: Icon }) => (
+              <NavLink key={to} to={to} className="tabbar__item">
+                <Icon size={20} />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </div>
         </nav>
       )}
     </div>

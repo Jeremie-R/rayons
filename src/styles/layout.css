@@ -58,14 +58,22 @@
   flex-direction: column;
 }
 
+/* Phone navigation: a rounded bar resting above the bottom edge. The current section is a
+   solid pill (black, white on it), like the desktop rail. */
 .tabbar {
   flex: 0 0 auto;
+  padding: 6px 12px calc(10px + var(--safe-bottom));
+  background: var(--page);
+}
+
+.tabbar__bar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  height: calc(var(--tabbar) + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
-  border-top: 1px solid var(--line);
-  background: var(--page);
+  gap: 4px;
+  height: calc(var(--tabbar) - 8px);
+  padding: 5px;
+  border-radius: 24px;
+  background: var(--fill, var(--selected));
 }
 
 .tabbar__item {
@@ -74,26 +82,23 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
+  border-radius: 19px;
   color: var(--ink-muted);
   text-decoration: none;
-  font-size: var(--text-sm);
+  font-size: 11px;
   font-weight: var(--weight-medium);
+  letter-spacing: 0.01em;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s var(--ease), color 0.2s var(--ease);
 }
 
-.tabbar__item svg {
-  padding: 6px 16px;
-  width: 52px;
-  height: 32px;
-  border-radius: var(--radius-pill);
-  transition: background-color 0.15s;
+.tabbar__item:active {
+  transform: scale(0.97);
 }
 
 .tabbar__item.active {
-  color: var(--accent);
-}
-
-.tabbar__item.active svg {
-  background: var(--accent-bg);
+  background: var(--grain-soft, none), var(--ink);
+  color: var(--ink-inverse);
 }
 
 .banner-bar {

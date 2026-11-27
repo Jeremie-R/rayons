@@ -691,7 +691,7 @@
   }
 
   .compose-panel.is-folded {
-    inset: auto 0 calc(var(--tabbar) + var(--safe-bottom)) 0;
+    inset: auto 0 calc(var(--tabbar) + 16px + var(--safe-bottom)) 0;
     border-top: 1px solid var(--line);
   }
 }
