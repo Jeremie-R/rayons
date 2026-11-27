@@ -1078,3 +1078,33 @@
   background: var(--selected);
   color: var(--ink);
 }
+
+/* Pull to refresh (phones) */
+
+.pull-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+.pull-refresh.is-refreshing {
+  transition: height 0.2s var(--ease);
+}
+
+.pull-refresh__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  flex: none;
+}
+
+.pull-refresh.is-refreshing .pull-refresh__spinner {
+  opacity: 1 !important;
+  animation: spin 0.8s linear infinite;
+}

@@ -5,11 +5,12 @@ import { Menu, MenuItem } from '../components/overlays'
 import { Illustration } from '../components/Illustration'
 import { Button, EmptyState, ErrorNote, IconButton, Loading, TagChip } from '../components/ui'
 import { ResizeHandle, useListWidth } from '../components/ResizeHandle'
-import { keys, prefetch, useBackend, useQuery } from '../data/store'
+import { keys, prefetch, updateCached, useBackend, useQuery } from '../data/store'
 import { useIsMobile } from '../lib/hooks'
 import { useShortcut } from '../lib/shortcuts'
 import { TAGS, type MailBox, type TagId, type ThreadQuery } from '../lib/types'
 import { useCompose } from '../mail/Composer'
+import { usePullToRefresh } from '../lib/usePullToRefresh'
 import { useMailActions } from '../mail/actions'
 import { inboxOrder, ThreadList } from '../mail/ThreadList'
 import { ThreadView } from '../mail/ThreadView'
@@ -44,7 +45,13 @@ export function InboxScreen() {
   }, [searchDraft])
 
   const query: ThreadQuery = { box, tag, search }
-  const { data, error, reload } = useQuery(`${keys.threads}${JSON.stringify(query)}`, () => backend.listThreads(query))
+  const threadsKey = `${keys.threads}${JSON.stringify(query)}`
+  const { data, error, reload } = useQuery(threadsKey, () => backend.listThreads(query))
+  // Phones: pull the list down from the top to fetch new mail.
+  const pullRefresh = usePullToRefresh<HTMLDivElement>(async () => {
+    const fresh = await backend.listThreads(query)
+    updateCached(threadsKey, () => fresh)
+  })
   const { data: projects } = useQuery(keys.projects, () => backend.listProjects())
 
   // Unread threads opened during this visit keep their place in the list (see inboxOrder).
@@ -175,7 +182,13 @@ export function InboxScreen() {
             </div>
           </header>
 
-          <div className="list-pane__body">
+          <div className="list-pane__body" ref={pullRefresh.ref}>
+            {(pullRefresh.shown > 0 || pullRefresh.refreshing) && (
+              <div className={`pull-refresh ${pullRefresh.refreshing ? 'is-refreshing' : ''}`} style={{ height: pullRefresh.shown }} role="status" aria-live="polite">
+                <span className="pull-refresh__spinner" style={{ transform: pullRefresh.refreshing ? undefined : `rotate(${pullRefresh.progress * 270}deg)`, opacity: Math.max(0.3, pullRefresh.progress) }} />
+                <span className="pull-refresh__label">{pullRefresh.refreshing ? 'Checking for new mail…' : pullRefresh.ready ? 'Release to refresh' : 'Pull to refresh'}</span>
+              </div>
+            )}
             {!!error && !!data && (
               <div className="stale-note" role="status">
                 <span>Couldn’t refresh: {error instanceof Error ? error.message : 'something went wrong'}</span>
