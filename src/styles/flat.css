@@ -389,3 +389,26 @@ kbd,
 .project-card .medium {
   color: var(--on-fill);
 }
+
+/* The same print grain on the solid buttons and the current navigation item. */
+.button--accent,
+.icon-button--round,
+.icon-button--plain.is-active,
+.pill-button,
+.rail__item.active,
+.tag.is-active,
+.tag--all.is-active,
+.chip-button.is-active,
+.count-badge {
+  background-image: var(--grain);
+}
+
+/* Today: a soft grey circle and the date in the accent, rather than a solid blue disc. */
+.day-head.is-today .day-head__date,
+.month-cell.is-today .month-cell__date,
+.mini-month__day.is-today,
+.schedule__day.is-today .schedule__num {
+  background: var(--fill);
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+}
