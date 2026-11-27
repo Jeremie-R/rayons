@@ -83,7 +83,8 @@
   background: color-mix(in srgb, var(--fill-hover, var(--selected)) 88%, transparent);
   -webkit-backdrop-filter: blur(18px) saturate(1.6);
   backdrop-filter: blur(18px) saturate(1.6);
-  box-shadow: 0 8px 28px rgba(20, 20, 30, 0.14), 0 2px 6px rgba(20, 20, 30, 0.06);
+  /* The fade behind does most of the separating; just a breath of shadow. */
+  box-shadow: 0 4px 14px rgba(20, 20, 30, 0.05);
   pointer-events: auto;
 }
 
