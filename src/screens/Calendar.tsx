@@ -13,7 +13,7 @@ import { TAGS, type CalendarEvent, type TagId } from '../lib/types'
 
 type View = 'schedule' | 'day' | 'week' | 'month' | 'year'
 const DESKTOP_VIEWS: View[] = ['schedule', 'day', 'week', 'month', 'year']
-const MOBILE_VIEWS: View[] = ['schedule', 'day', 'month']
+const MOBILE_VIEWS: View[] = ['schedule', 'day', 'week', 'month']
 const HIDDEN_CALENDARS_KEY = 'rayons:hidden-calendars'
 
 function readHidden(): string[] {
@@ -151,7 +151,7 @@ export function CalendarScreen() {
   useShortcut('ArrowLeft', () => step(-1))
   useShortcut('a', () => go({ view: 'schedule' }))
   useShortcut('d', () => go({ view: 'day' }))
-  useShortcut('w', () => go({ view: 'week' }), !mobile)
+  useShortcut('w', () => go({ view: 'week' }))
   useShortcut('m', () => go({ view: 'month' }))
   useShortcut('y', () => go({ view: 'year' }), !mobile)
   useShortcut('/', () => setSearching(true))
@@ -168,6 +168,17 @@ export function CalendarScreen() {
     if (view === 'month') return formatMonthYear(cursor)
     if (view === 'year') return String(cursor.getFullYear())
     return `From ${formatDay(cursor)}`
+  })()
+  // Phones: no year on days and weeks, to fit beside the buttons.
+  const shownLabel = (() => {
+    if (!mobile || view === 'month') return label
+    if (view === 'week') {
+      const start = startOfWeek(cursor)
+      const end = addDays(start, 6)
+      const short = (d: Date) => formatDay(d).replace(/, \d{4}$/, '')
+      return start.getMonth() === end.getMonth() ? `${short(start)}–${end.getDate()}` : `${short(start)} – ${short(end)}`
+    }
+    return label.replace(/,? \d{4}$/, '')
   })()
 
   const now = new Date()
@@ -190,6 +201,100 @@ export function CalendarScreen() {
     )
   }, [params])
   const addButton = <IconButton icon={AddEventIcon} label="New event" shortcut="c" variant="round" onClick={createNow} />
+  const todayBadge = (
+    <button type="button" className="today-badge" onClick={today} data-tooltip="Today" data-keys="t" aria-label="Go to today">
+      <span className="today-badge__month">{formatMonth(now)}</span>
+      <span className="today-badge__day">{now.getDate()}</span>
+    </button>
+  )
+  const viewSwitch = <Segmented label="View" options={views.map((v) => ({ value: v, label: v }))} value={view} onChange={(v) => go({ view: v })} />
+  const toolButtons = (
+    <>
+      {searching ? (
+        <div className="search search--inline">
+          <SearchIcon size={16} />
+          <input className="search__input" autoFocus placeholder="search events" aria-label="Search events" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <IconButton
+            icon={CloseIcon}
+            label="Close search"
+            onClick={() => {
+              setSearch('')
+              setSearching(false)
+            }}
+          />
+        </div>
+      ) : (
+        <IconButton icon={SearchIcon} label="Search events" shortcut="/" onClick={() => setSearching(true)} />
+      )}
+      <Menu label="Filter" trigger={(props) => <IconButton {...props} icon={FilterIcon} label="Filter by tag or project" active={filtering} />}>
+        {() => (
+          <>
+            <MenuHeading>Tags</MenuHeading>
+            {[...TAGS, 'none' as const].map((tag) => (
+              <MenuItem key={tag} checked={tagFilter.has(tag)} onSelect={() => toggleTag(tag)}>
+                <span className="menu__tag">
+                  <TagDot tag={tag === 'none' ? null : tag} title="" />
+                  {tag === 'none' ? 'no tag' : TAG_INFO[tag].label}
+                </span>
+              </MenuItem>
+            ))}
+            {activeProjects.length > 0 && (
+              <>
+                <MenuSeparator />
+                <MenuHeading>Projects</MenuHeading>
+                {activeProjects.map((project) => (
+                  <MenuItem key={project.id} icon={FolderIcon} checked={projectFilter.has(project.id)} onSelect={() => toggleProject(project.id)}>
+                    {project.name}
+                  </MenuItem>
+                ))}
+              </>
+            )}
+            {filtering && (
+              <>
+                <MenuSeparator />
+                <MenuItem
+                  onSelect={() => {
+                    setTagFilter(new Set())
+                    setProjectFilter(new Set())
+                  }}
+                >
+                  Show everything
+                </MenuItem>
+              </>
+            )}
+          </>
+        )}
+      </Menu>
+      <Menu label="Calendars" trigger={(props) => <IconButton {...props} icon={SettingsIcon} label="Calendars" />}>
+        {() => (
+          <>
+            <MenuHeading>Calendars shown</MenuHeading>
+            {(calendars ?? []).map((calendar) => (
+              <MenuItem
+                key={calendar.id}
+                checked={!hidden.includes(calendar.id)}
+                onSelect={() => {
+                  const next = hidden.includes(calendar.id) ? hidden.filter((id) => id !== calendar.id) : [...hidden, calendar.id]
+                  setHidden(next)
+                  try {
+                    localStorage.setItem(HIDDEN_CALENDARS_KEY, JSON.stringify(next))
+                  } catch {
+                    // Remembered for this visit only.
+                  }
+                }}
+              >
+                <span className="menu__tag">
+                  <span className="calendar-swatch" style={{ background: calendar.color }} />
+                  {calendar.name}
+                </span>
+              </MenuItem>
+            ))}
+          </>
+        )}
+      </Menu>
+    </>
+  )
+
   useShortcut('c', createNow)
   const toggleTag = (tag: TagId | 'none') =>
     setTagFilter((set) => {
@@ -201,106 +306,42 @@ export function CalendarScreen() {
 
   return (
     <div className="calendar">
-      <header className="calendar__header">
-        <div className="calendar__title">
-          <h1>Calendar</h1>
-          <button type="button" className="today-badge" onClick={today} data-tooltip="Today" data-keys="t" aria-label="Go to today">
-            <span className="today-badge__month">{formatMonth(now)}</span>
-            <span className="today-badge__day">{now.getDate()}</span>
-          </button>
-          <div className="calendar__nav">
-            <IconButton icon={PrevIcon} label="Previous" shortcut="k" size={20} onClick={() => step(-1)} />
-            <IconButton icon={NextIcon} label="Next" shortcut="j" size={20} onClick={() => step(1)} />
-            <span className="calendar__range">{label}</span>
-            {mobile && addButton}
-          </div>
-        </div>
-        <div className="calendar__tools">
-          <Segmented label="View" options={views.map((v) => ({ value: v, label: v }))} value={view} onChange={(v) => go({ view: v })} />
-          {searching ? (
-            <div className="search search--inline">
-              <SearchIcon size={16} />
-              <input className="search__input" autoFocus placeholder="search events" aria-label="Search events" value={search} onChange={(e) => setSearch(e.target.value)} />
-              <IconButton
-                icon={CloseIcon}
-                label="Close search"
-                onClick={() => {
-                  setSearch('')
-                  setSearching(false)
-                }}
-              />
+      <header className={`calendar__header ${mobile ? 'calendar__header--phone' : ''}`}>
+        {mobile ? (
+          <>
+            {/* Phones: date and tools on top, the views with the arrows either side below. */}
+            <div className="calendar__title">
+              {todayBadge}
+              <span className="calendar__range">{shownLabel}</span>
+              <div className="calendar__actions">
+                {toolButtons}
+                {addButton}
+              </div>
             </div>
-          ) : (
-            <IconButton icon={SearchIcon} label="Search events" shortcut="/" onClick={() => setSearching(true)} />
-          )}
-          <Menu label="Filter" trigger={(props) => <IconButton {...props} icon={FilterIcon} label="Filter by tag or project" active={filtering} />}>
-            {() => (
-              <>
-                <MenuHeading>Tags</MenuHeading>
-                {[...TAGS, 'none' as const].map((tag) => (
-                  <MenuItem key={tag} checked={tagFilter.has(tag)} onSelect={() => toggleTag(tag)}>
-                    <span className="menu__tag">
-                      <TagDot tag={tag === 'none' ? null : tag} title="" />
-                      {tag === 'none' ? 'no tag' : TAG_INFO[tag].label}
-                    </span>
-                  </MenuItem>
-                ))}
-                {activeProjects.length > 0 && (
-                  <>
-                    <MenuSeparator />
-                    <MenuHeading>Projects</MenuHeading>
-                    {activeProjects.map((project) => (
-                      <MenuItem key={project.id} icon={FolderIcon} checked={projectFilter.has(project.id)} onSelect={() => toggleProject(project.id)}>
-                        {project.name}
-                      </MenuItem>
-                    ))}
-                  </>
-                )}
-                {filtering && (
-                  <>
-                    <MenuSeparator />
-                    <MenuItem
-                      onSelect={() => {
-                        setTagFilter(new Set())
-                        setProjectFilter(new Set())
-                      }}
-                    >
-                      Show everything
-                    </MenuItem>
-                  </>
-                )}
-              </>
-            )}
-          </Menu>
-          <Menu label="Calendars" trigger={(props) => <IconButton {...props} icon={SettingsIcon} label="Calendars" />}>
-            {() => (
-              <>
-                <MenuHeading>Calendars shown</MenuHeading>
-                {(calendars ?? []).map((calendar) => (
-                  <MenuItem
-                    key={calendar.id}
-                    checked={!hidden.includes(calendar.id)}
-                    onSelect={() => {
-                      const next = hidden.includes(calendar.id) ? hidden.filter((id) => id !== calendar.id) : [...hidden, calendar.id]
-                      setHidden(next)
-                      try {
-                        localStorage.setItem(HIDDEN_CALENDARS_KEY, JSON.stringify(next))
-                      } catch {
-                        // Remembered for this visit only.
-                      }
-                    }}
-                  >
-                    <span className="menu__tag">
-                      <span className="calendar-swatch" style={{ background: calendar.color }} />
-                      {calendar.name}
-                    </span>
-                  </MenuItem>
-                ))}
-              </>
-            )}
-          </Menu>
-          {!mobile && addButton}
-        </div>
+            <div className="calendar__tools">
+              <IconButton icon={PrevIcon} label="Previous" size={20} onClick={() => step(-1)} />
+              {viewSwitch}
+              <IconButton icon={NextIcon} label="Next" size={20} onClick={() => step(1)} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="calendar__title">
+              <h1>Calendar</h1>
+              {todayBadge}
+              <div className="calendar__nav">
+                <IconButton icon={PrevIcon} label="Previous" shortcut="k" size={20} onClick={() => step(-1)} />
+                <IconButton icon={NextIcon} label="Next" shortcut="j" size={20} onClick={() => step(1)} />
+                <span className="calendar__range">{label}</span>
+              </div>
+            </div>
+            <div className="calendar__tools">
+              {viewSwitch}
+              {toolButtons}
+              {addButton}
+            </div>
+          </>
+        )}
       </header>
 
       <div className="calendar__body">

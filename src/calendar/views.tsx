@@ -244,7 +244,7 @@ export function TimeGrid({ days, events, onOpen, onCreate, ghost, onStep }: View
   return (
     <div
       ref={root}
-      className={`time-grid ${carousel ? 'is-carousel' : ''}`}
+      className={`time-grid ${carousel ? 'is-carousel' : ''} ${days.length === 7 ? 'time-grid--week' : ''}`}
       style={columns}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

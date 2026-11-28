@@ -966,3 +966,101 @@
 .is-carousel .day-column {
   box-shadow: -8px 0 16px -12px rgba(0, 0, 0, 0.25);
 }
+
+/* Phone header: badge, date and tools on top; arrows either side of the views below. */
+@media (max-width: 719px) {
+  .calendar__header--phone {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 12px var(--gutter) 10px;
+  }
+
+  .calendar__header--phone .calendar__title {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .calendar__header--phone .calendar__range {
+    order: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--text-lg);
+  }
+
+  .calendar__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+
+  .calendar__actions .icon-button--plain {
+    width: 34px;
+    height: 34px;
+    margin: 0;
+  }
+
+  .calendar__header--phone .calendar__tools {
+    width: 100%;
+    gap: 4px;
+  }
+
+  .calendar__header--phone .calendar__tools > .icon-button--plain {
+    width: 32px;
+    height: 40px;
+    margin: 0;
+    flex: none;
+  }
+
+  .calendar__header--phone .segmented {
+    flex: 1;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .calendar__header--phone .segmented__item {
+    flex: 1;
+    min-width: 0;
+    padding: 0 2px;
+    font-size: 13px;
+  }
+
+  /* Week on a phone: seven narrow columns, so blocks show the title only, smaller. */
+  .time-grid--week .event-block {
+    padding: 3px 4px;
+  }
+
+  .time-grid--week .event-block__title {
+    font-size: 11px;
+    line-height: 1.25;
+    -webkit-line-clamp: 4;
+    hyphens: auto;
+    overflow-wrap: break-word;
+  }
+
+  .time-grid--week .event-block__time,
+  .time-grid--week .event-block__where {
+    display: none;
+  }
+
+  .time-grid--week .banner {
+    margin: 0 2px;
+    padding: 0 4px;
+    font-size: 11px;
+  }
+
+  .time-grid--week .day-head__weekday {
+    font-size: 11px;
+  }
+
+  .time-grid--week .day-head__date {
+    font-size: var(--text-md);
+    min-width: 28px;
+    height: 28px;
+  }
+}
