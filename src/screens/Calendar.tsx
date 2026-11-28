@@ -8,6 +8,7 @@ import { ErrorNote, IconButton, Segmented, TagDot } from '../components/ui'
 import { keys, prefetch, useBackend, useQuery } from '../data/store'
 import { addDays, addMonths, dateKey, formatDay, formatMonth, formatMonthYear, parseDate, startOfDay, startOfMonth, startOfWeek } from '../lib/dates'
 import { useIsMobile, useShortcut } from '../lib/hooks'
+import { useSwipeStep } from '../lib/useSwipeStep'
 import { TAG_INFO } from '../lib/tags'
 import { TAGS, type CalendarEvent, type TagId } from '../lib/types'
 
@@ -138,6 +139,8 @@ export function CalendarScreen() {
     })
 
   const step = (direction: 1 | -1) => go({ date: stepFrom(view, cursor, direction) })
+  // Phones: swipe sideways for the next or previous week or month (the day view has its own).
+  const swipeRef = useSwipeStep<HTMLDivElement>(step, mobile && (view === 'week' || view === 'month'))
   const today = () => go({ date: startOfDay(new Date()) })
   const openDay = (day: Date) => go({ view: 'day', date: day })
   const create = (at: Date, allDay = false, anchor?: DOMRect, end?: Date) => setEditing({ mode: 'create', draft: newDraft(at, { allDay, end }), anchor })
@@ -171,7 +174,12 @@ export function CalendarScreen() {
   })()
   // Phones: no year on days and weeks, to fit beside the buttons.
   const shownLabel = (() => {
-    if (!mobile || view === 'month') return label
+    if (!mobile) return label
+    if (view === 'month') {
+      // "December" this year; "Dec 2027" otherwise.
+      const name = formatMonthYear(cursor)
+      return cursor.getFullYear() === new Date().getFullYear() ? name.split(' ')[0] : `${name.slice(0, 3)} ${cursor.getFullYear()}`
+    }
     if (view === 'week') {
       const start = startOfWeek(cursor)
       const end = addDays(start, 6)
@@ -344,7 +352,7 @@ export function CalendarScreen() {
         )}
       </header>
 
-      <div className="calendar__body">
+      <div className="calendar__body" ref={swipeRef}>
         {!!error && !data && <ErrorNote error={error} onRetry={reload} />}
         {(view === 'week' || view === 'day') && (
           <TimeGrid

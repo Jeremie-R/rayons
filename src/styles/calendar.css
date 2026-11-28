@@ -920,7 +920,8 @@
 }
 
 /* Touch: the browser keeps vertical scrolling; sideways drags and pinches are ours. */
-.time-grid__body {
+.time-grid__body,
+.month-grid {
   touch-action: pan-y;
 }
 
